@@ -1,0 +1,36 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="react" name="ReAct Pattern">
+    <mxGraphModel dx="1000" dy="800" grid="1" gridSize="10" page="1" pageWidth="1000" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t" value="THOUGHT&#10;이걸 먼저 찾아봐야겠다" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1">
+          <mxGeometry x="200" y="60" width="360" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="a" value="ACTION&#10;search(&quot;서울 날씨&quot;)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1">
+          <mxGeometry x="200" y="170" width="360" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="o" value="OBSERVATION&#10;맑음, 18도" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1">
+          <mxGeometry x="200" y="280" width="360" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="t2" value="THOUGHT&#10;이제 답할 수 있다" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1">
+          <mxGeometry x="200" y="390" width="360" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="f" value="FINAL ANSWER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="200" y="500" width="360" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="t" target="a"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="a" target="o"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="o" target="t2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="t2" target="f"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- loop annotation -->
+        <mxCell id="loop" value="LOOP" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Archivo;fontSize=11;fontStyle=1;fontColor=#FF3300;" vertex="1" parent="1">
+          <mxGeometry x="600" y="220" width="100" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

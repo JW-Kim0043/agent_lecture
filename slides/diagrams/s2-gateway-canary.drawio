@@ -1,0 +1,23 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="canary" name="A/B Canary">
+    <mxGraphModel dx="1000" dy="600" grid="1" gridSize="10" page="1" pageWidth="1000" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" /><mxCell id="1" parent="0" />
+
+        <mxCell id="req" value="REQUEST" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="100" y="200" width="140" height="60" as="geometry" /></mxCell>
+
+        <mxCell id="split" value="SPLITTER&#10;(feature flag)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="330" y="180" width="180" height="100" as="geometry" /></mxCell>
+
+        <mxCell id="a" value="VARIANT A  (현재)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="620" y="100" width="240" height="60" as="geometry" /></mxCell>
+        <mxCell id="b" value="VARIANT B  (실험)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF3300;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="620" y="300" width="240" height="60" as="geometry" /></mxCell>
+
+        <mxCell id="e0" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="req" target="split"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e1" value="90%" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" edge="1" parent="1" source="split" target="a"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="10%" style="endArrow=classic;html=1;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;fontColor=#FF3300;" edge="1" parent="1" source="split" target="b"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- progression label -->
+        <mxCell id="lbl" value="10%  →  50%  →  100%" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FF3300;align=center;" vertex="1" parent="1"><mxGeometry x="500" y="450" width="400" height="30" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

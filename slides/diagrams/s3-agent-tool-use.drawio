@@ -1,0 +1,20 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="tool-use" name="Tool Use">
+    <mxGraphModel dx="1000" dy="800" grid="1" gridSize="10" page="1" pageWidth="1000" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" /><mxCell id="1" parent="0" />
+
+        <mxCell id="u" value="USER&#10;&quot;서울 날씨 알려줘&quot;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="200" y="40" width="520" height="60" as="geometry" /></mxCell>
+        <mxCell id="llm1" value="LLM  →  {&quot;name&quot;: &quot;get_weather&quot;, &quot;args&quot;: {&quot;city&quot;: &quot;Seoul&quot;}}" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="200" y="140" width="520" height="60" as="geometry" /></mxCell>
+        <mxCell id="rt" value="RUNTIME:  get_weather(&quot;Seoul&quot;)  실행" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="200" y="240" width="520" height="60" as="geometry" /></mxCell>
+        <mxCell id="res" value="RESULT:  &quot;맑음, 18도&quot;  →  LLM 컨텍스트로 주입" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="200" y="340" width="520" height="60" as="geometry" /></mxCell>
+        <mxCell id="final" value="LLM  →  최종 응답" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;align=left;spacingLeft=16;" vertex="1" parent="1"><mxGeometry x="200" y="440" width="520" height="60" as="geometry" /></mxCell>
+
+        <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="u" target="llm1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="llm1" target="rt"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="rt" target="res"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="res" target="final"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

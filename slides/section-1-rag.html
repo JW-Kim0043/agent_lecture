@@ -1,0 +1,2405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Section 1 · RAG 아키텍처 설계</title>
+
+<!-- Swiss Modern fonts: Archivo (display 800/900) + Nunito (body) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Nunito:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   SWISS MODERN · Bauhaus-inspired
+   Palette: pure white · pure black · red (#FF3300)
+   Type:    Archivo 800 (display) + Nunito 400 (body)
+   =========================================== */
+:root {
+    --bg:         #ffffff;
+    --bg-grid:    #f5f5f5;
+    --ink:        #0a0a0a;
+    --ink-soft:   #3a3a3a;
+    --ink-mute:   #8a8a8a;
+    --rule:       #e5e5e5;
+    --accent:     #ff3300;
+    --accent-soft:#ffe5de;
+
+    --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body:    'Nunito', 'Archivo', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+    --title-size:  clamp(2rem, 5.5vw, 4.25rem);
+    --h2-size:     clamp(1.35rem, 3.3vw, 2.35rem);
+    --h3-size:     clamp(0.95rem, 1.95vw, 1.35rem);
+    --body-size:   clamp(0.78rem, 1.35vw, 1.05rem);
+    --small-size:  clamp(0.65rem, 1vw, 0.8rem);
+    --mono-size:   clamp(0.7rem, 1.1vw, 0.95rem);
+
+    --slide-padding: clamp(1.25rem, 4vw, 3.5rem);
+    --content-gap:   clamp(0.6rem, 1.8vw, 1.6rem);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration: 0.55s;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: var(--font-body); font-weight: 400;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+/* ===========================================
+   VIEWPORT
+   =========================================== */
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; scroll-snap-align: start;
+    display: flex; flex-direction: column; position: relative;
+    background: var(--bg);
+}
+/* Visible grid — Swiss Modern signature */
+.slide::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: clamp(40px, 6vw, 80px) clamp(40px, 6vw, 80px);
+    pointer-events: none;
+    opacity: 0.85;
+}
+.slide-content {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    max-height: 100%; overflow: hidden;
+    padding: var(--slide-padding);
+    padding-top: clamp(3.2rem, 7.5vh, 5rem);
+    padding-bottom: clamp(2rem, 5vh, 3.5rem);
+    position: relative; z-index: 2;
+}
+img, svg { max-width: 100%; max-height: min(55vh, 420px); }
+
+@media (max-height: 700px) {
+    :root {
+        --slide-padding: clamp(0.9rem, 3vw, 2rem);
+        --title-size: clamp(1.4rem, 4.5vw, 2.8rem);
+        --h2-size: clamp(1.1rem, 3vw, 1.8rem);
+    }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.6rem, 2.5vw, 1.5rem); --title-size: clamp(1.15rem, 4vw, 2.2rem); --body-size: clamp(0.7rem, 1.2vw, 0.95rem); }
+    .nav-dots { display: none; }
+    .slide::before { opacity: 0.5; }
+}
+@media (max-width: 600px) {
+    :root { --title-size: clamp(1.4rem, 7vw, 2.4rem); }
+    .two-col, .icon-grid, .num-grid { grid-template-columns: 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.15s !important; }
+    html { scroll-behavior: auto; }
+}
+
+/* ===========================================
+   FRAME
+   =========================================== */
+.progress-bar {
+    position: fixed; top: 0; left: 0;
+    height: 3px; width: 0%;
+    background: var(--accent); z-index: 100;
+    transition: width 0.25s ease-out;
+}
+.nav-dots {
+    position: fixed; right: clamp(0.6rem, 1.5vw, 1.25rem);
+    top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 10px; z-index: 50;
+}
+.nav-dots button {
+    width: 10px; height: 10px; border-radius: 0;
+    border: 1.5px solid var(--ink); background: var(--bg);
+    padding: 0; cursor: pointer; transition: all 0.2s ease;
+}
+.nav-dots button.active { background: var(--accent); border-color: var(--accent); }
+
+.slide-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: clamp(1rem, 2.8vh, 1.8rem) var(--slide-padding);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: var(--small-size); color: var(--ink-mute);
+    font-family: var(--font-mono); letter-spacing: 0.1em;
+    z-index: 10; text-transform: uppercase;
+}
+.section-marker { color: var(--accent); font-weight: 500; }
+.section-marker::before {
+    content: ''; display: inline-block;
+    width: 10px; height: 10px;
+    background: var(--accent);
+    margin-right: 0.6em; vertical-align: -1px;
+}
+.slide-num { font-variant-numeric: tabular-nums; }
+
+/* ===========================================
+   TITLE SLIDE — asymmetric Swiss layout
+   =========================================== */
+.title-slide { justify-content: flex-end; padding: 0; }
+.title-slide::before { opacity: 1; }
+.title-slide .hero {
+    position: relative; z-index: 3;
+    padding: var(--slide-padding);
+    padding-right: clamp(2rem, 10vw, 8rem);
+    padding-bottom: clamp(2rem, 6vh, 4rem);
+    max-width: 92vw;
+}
+/* Big red bar top-left */
+.title-slide::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: clamp(80px, 18vw, 260px);
+    height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent);
+    z-index: 2;
+}
+/* Section number — HUGE in corner */
+.title-num {
+    position: absolute;
+    top: clamp(2.5rem, 8vh, 5rem);
+    right: clamp(1.5rem, 5vw, 4rem);
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(6rem, 24vw, 20rem);
+    line-height: 0.8;
+    color: var(--bg);
+    -webkit-text-stroke: 2px var(--ink);
+    letter-spacing: -0.08em;
+    z-index: 1;
+    opacity: 0.85;
+    user-select: none;
+}
+.section-badge {
+    display: inline-block;
+    font-family: var(--font-mono); font-size: clamp(0.75rem, 1.3vw, 1rem);
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent);
+    padding: 0.3em 0 0.3em 1em;
+    border-left: 4px solid var(--accent);
+    margin-bottom: clamp(1rem, 2.5vh, 1.75rem);
+}
+.hero h1 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: var(--title-size); line-height: 0.95;
+    letter-spacing: -0.04em; color: var(--ink);
+    margin-bottom: clamp(0.75rem, 2vh, 1.25rem);
+    text-transform: uppercase;
+}
+.hero h1 .accent { color: var(--accent); }
+.tagline {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(1rem, 2.2vw, 1.5rem);
+    color: var(--ink-soft); letter-spacing: -0.01em;
+    margin-bottom: clamp(1.25rem, 3vh, 2rem); max-width: 44ch;
+}
+.meta {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--ink-mute); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.meta span + span::before { content: '  /  '; color: var(--rule); }
+
+/* ===========================================
+   HEADINGS
+   =========================================== */
+h2.slide-title {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: var(--h2-size); letter-spacing: -0.03em;
+    line-height: 1.05; color: var(--ink); text-transform: uppercase;
+    margin-bottom: clamp(0.5rem, 1.5vh, 1rem);
+}
+h2.slide-title .hl { color: var(--accent); }
+/* Red underline marker for section title */
+h2.slide-title::after {
+    content: ''; display: block;
+    width: clamp(40px, 5vw, 60px); height: 4px;
+    background: var(--accent);
+    margin-top: clamp(0.5rem, 1.5vh, 1rem);
+}
+.slide-subtitle {
+    font-size: var(--body-size); color: var(--ink-soft);
+    margin-bottom: clamp(0.75rem, 2vh, 1.5rem); max-width: 60ch;
+    font-weight: 500;
+}
+.big-quote {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(1.2rem, 3vw, 2.2rem); line-height: 1.15;
+    letter-spacing: -0.025em; color: var(--ink); max-width: 30ch;
+    text-transform: uppercase;
+}
+.big-quote .hl { color: var(--accent); }
+
+.label-strip {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--accent); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 0.8em;
+    font-weight: 700;
+}
+.label-strip::before {
+    content: '—'; margin-right: 0.6em; color: var(--accent);
+    font-family: var(--font-display);
+}
+
+/* ===========================================
+   REVEAL animations — subtle (Swiss = restrained)
+   =========================================== */
+.reveal {
+    opacity: 0; transform: translateY(16px);
+    transition: opacity var(--duration) var(--ease-out),
+                transform var(--duration) var(--ease-out);
+}
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0.05s; }
+.reveal:nth-child(2) { transition-delay: 0.15s; }
+.reveal:nth-child(3) { transition-delay: 0.25s; }
+.reveal:nth-child(4) { transition-delay: 0.35s; }
+.reveal:nth-child(5) { transition-delay: 0.45s; }
+.reveal:nth-child(6) { transition-delay: 0.55s; }
+.reveal:nth-child(7) { transition-delay: 0.65s; }
+.slide.visible [data-i="1"] { transition-delay: 0.10s; }
+.slide.visible [data-i="2"] { transition-delay: 0.18s; }
+.slide.visible [data-i="3"] { transition-delay: 0.26s; }
+.slide.visible [data-i="4"] { transition-delay: 0.34s; }
+.slide.visible [data-i="5"] { transition-delay: 0.42s; }
+.slide.visible [data-i="6"] { transition-delay: 0.50s; }
+.slide.visible [data-i="7"] { transition-delay: 0.58s; }
+
+/* ===========================================
+   COMPONENTS
+   =========================================== */
+
+/* Bullet list — numbered with geometric markers */
+.bullet-list {
+    list-style: none; display: flex; flex-direction: column;
+    gap: clamp(0.5rem, 1.4vh, 1rem); max-width: 62ch;
+}
+.bullet-list li {
+    font-size: var(--body-size); line-height: 1.5;
+    padding-left: 3em; position: relative;
+    color: var(--ink); font-weight: 500;
+}
+.bullet-list li::before {
+    content: attr(data-n);
+    position: absolute; left: 0; top: 0;
+    color: var(--accent); font-family: var(--font-display);
+    font-weight: 800; font-size: 0.95em;
+    letter-spacing: 0.05em;
+}
+.bullet-list li.check::before {
+    content: ''; width: 12px; height: 12px;
+    background: var(--accent); top: 0.45em; left: 0.2em;
+}
+.bullet-list li b { color: var(--ink); font-weight: 700; }
+.bullet-list li .muted { color: var(--ink-mute); font-weight: 400; }
+
+/* Numbered grid — cards with big number */
+.num-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0;
+    border-top: 2px solid var(--ink);
+    border-left: 2px solid var(--ink);
+}
+.num-item {
+    border-right: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    padding: clamp(1rem, 2.2vw, 1.6rem);
+    background: var(--bg);
+    position: relative;
+    min-height: 140px;
+    display: flex; flex-direction: column; gap: 0.4em;
+}
+.num-item .n {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    color: var(--accent); line-height: 0.9;
+    letter-spacing: -0.03em;
+}
+.num-item h3 {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: var(--h3-size); text-transform: uppercase;
+    letter-spacing: -0.01em; color: var(--ink);
+}
+.num-item p {
+    font-size: var(--body-size); color: var(--ink-soft);
+    line-height: 1.4; font-weight: 500;
+}
+.num-item.accent { background: var(--accent); color: var(--bg); }
+.num-item.accent .n { color: var(--bg); }
+.num-item.accent h3 { color: var(--bg); }
+.num-item.accent p { color: var(--bg); opacity: 0.9; }
+
+/* Plain table — strict Swiss grid */
+.slide-table {
+    width: 100%; border-collapse: collapse;
+    font-size: var(--body-size);
+    background: var(--bg);
+    border-top: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+}
+.slide-table th, .slide-table td {
+    padding: clamp(0.6rem, 1.4vh, 1rem) clamp(0.7rem, 1.3vw, 1.2rem);
+    text-align: left; border-bottom: 1px solid var(--rule);
+    vertical-align: top; font-weight: 500;
+}
+.slide-table th {
+    background: var(--ink); color: var(--bg);
+    font-weight: 700; font-family: var(--font-display);
+    font-size: var(--small-size); text-transform: uppercase;
+    letter-spacing: 0.1em; border-bottom: none;
+}
+.slide-table th.hl { background: var(--accent); }
+.slide-table tr:last-child td { border-bottom: none; }
+.slide-table td b { color: var(--ink); font-weight: 800; }
+.slide-table td.hl { color: var(--accent); font-weight: 700; }
+
+/* Two-column cards with strict border */
+.two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: clamp(0.6rem, 1.5vw, 1.2rem); width: 100%;
+}
+.col-card {
+    background: var(--bg); border: 2px solid var(--ink);
+    padding: clamp(1rem, 2.3vw, 1.6rem);
+    display: flex; flex-direction: column; gap: 0.5em;
+}
+.col-card.accent {
+    background: var(--accent); border-color: var(--accent); color: var(--bg);
+}
+.col-card.accent h3 { color: var(--bg); }
+.col-card.accent ul li { color: var(--bg); }
+.col-card.accent ul li::before { background: var(--bg); }
+.col-card h3 {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: var(--h3-size); text-transform: uppercase;
+    letter-spacing: -0.01em; margin-bottom: 0.3em;
+}
+.col-card h3 .sub {
+    color: var(--ink-mute); font-weight: 400;
+    font-size: 0.7em; margin-left: 0.5em;
+    text-transform: none;
+}
+.col-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.4em; }
+.col-card ul li {
+    font-size: var(--body-size); color: var(--ink-soft);
+    padding-left: 1.2em; position: relative; line-height: 1.45;
+    font-weight: 500;
+}
+.col-card ul li::before {
+    content: ''; position: absolute; left: 0; top: 0.55em;
+    width: 8px; height: 2px; background: var(--ink);
+}
+.col-card ul li b { color: var(--ink); font-weight: 800; }
+
+/* Callout — left rule only, no border */
+.callout {
+    background: var(--bg);
+    border-left: 4px solid var(--accent);
+    padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1rem, 2.5vw, 1.5rem);
+    font-size: var(--body-size); line-height: 1.5;
+    color: var(--ink-soft); max-width: 72ch;
+    font-weight: 500;
+}
+.callout.ink { border-left-color: var(--ink); }
+.callout b { color: var(--ink); font-weight: 800; }
+.callout .tag {
+    display: inline-block; font-family: var(--font-mono);
+    font-size: 0.78em; letter-spacing: 0.12em;
+    color: var(--accent); margin-bottom: 0.5em;
+    text-transform: uppercase; font-weight: 700;
+}
+.callout.ink .tag { color: var(--ink); }
+
+.center-box { max-width: 32ch; margin: 0 auto; text-align: center; }
+
+/* Stat / big number */
+.stat-row {
+    display: flex; gap: clamp(1.5rem, 5vw, 4rem);
+    flex-wrap: wrap; justify-content: flex-start;
+    align-items: flex-end;
+}
+.stat { text-align: left; }
+.stat .num {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    line-height: 0.9; color: var(--accent);
+    letter-spacing: -0.05em;
+}
+.stat .num.ink { color: var(--ink); }
+.stat .label {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--ink-soft); margin-top: 0.6em;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 500;
+}
+
+/* Chip grid (checklist) */
+.chip-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 0.6rem 0.8rem;
+}
+.chip {
+    display: flex; gap: 0.8em; align-items: flex-start;
+    font-size: var(--body-size); line-height: 1.4;
+    color: var(--ink); font-weight: 500;
+    padding: 0.7em 0.9em;
+    background: var(--bg); border: 2px solid var(--ink);
+}
+.chip::before {
+    content: ''; display: inline-block;
+    width: 14px; height: 14px; flex-shrink: 0;
+    border: 2px solid var(--ink); background: var(--bg);
+    margin-top: 0.15em;
+}
+
+/* Source footer */
+.source {
+    margin-top: clamp(0.6rem, 1.5vh, 1rem);
+    font-size: var(--small-size); color: var(--ink-mute);
+    font-family: var(--font-mono); letter-spacing: 0.05em;
+}
+.source::before { content: '→  '; color: var(--accent); }
+
+/* SVG diagram container */
+.diagram-box {
+    display: flex; justify-content: center; align-items: center;
+    width: 100%; max-height: 62vh;
+    margin: clamp(0.5rem, 1.5vh, 1rem) 0;
+}
+.diagram-box svg {
+    max-width: 100%; max-height: 60vh;
+    width: auto; height: auto;
+}
+
+/* Stack for layer views */
+.stack {
+    display: flex; flex-direction: column;
+    border-top: 2px solid var(--ink); border-left: 2px solid var(--ink);
+    max-width: 780px;
+}
+.stack .layer {
+    padding: clamp(0.7rem, 1.7vw, 1.1rem) clamp(1rem, 2.5vw, 1.6rem);
+    display: flex; align-items: center; gap: 1.2em;
+    border-right: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    background: var(--bg);
+}
+.stack .layer.highlight { background: var(--accent); color: var(--bg); }
+.stack .layer.highlight .tag { color: var(--bg); }
+.stack .layer.highlight .body-text { color: var(--bg); }
+.stack .layer.highlight .body-text .sub { color: var(--bg); opacity: 0.9; }
+.stack .tag {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: 1.1em; color: var(--accent);
+    flex-shrink: 0; min-width: 2.5em; letter-spacing: -0.02em;
+}
+.stack .body-text {
+    font-size: var(--body-size); color: var(--ink); font-weight: 500;
+}
+.stack .body-text b { font-weight: 800; }
+.stack .body-text .sub { color: var(--ink-soft); font-size: 0.92em; margin-left: 0.5em; }
+
+/* End slide — big red bar */
+.end-slide { justify-content: center; align-items: center; position: relative; }
+.end-slide::after {
+    content: ''; position: absolute;
+    bottom: 0; right: 0;
+    width: clamp(80px, 18vw, 260px);
+    height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent); z-index: 2;
+}
+
+/* chapter divider */
+.chapter-divider .slide-content { justify-content: center; align-items: flex-start; }
+.chapter-divider::before { opacity: 0.5; }
+.chapter-divider::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: clamp(60px, 14vw, 200px); height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent); z-index: 2;
+}
+.chapter-marker {
+    font-family: var(--font-mono);
+    font-size: clamp(0.8rem, 1.3vw, 1rem);
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+    margin-bottom: clamp(0.4rem, 1vh, 0.7rem);
+}
+.chapter-bignum {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(3.5rem, 12vw, 9rem); line-height: 0.85;
+    letter-spacing: -0.06em; color: var(--ink);
+    margin-bottom: clamp(0.4rem, 1.2vh, 0.8rem);
+}
+.chapter-bignum .of { color: var(--ink-mute); font-size: 0.45em; margin-left: 0.2em; letter-spacing: 0; }
+.chapter-title {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(1.75rem, 4.2vw, 3rem); line-height: 1.0;
+    letter-spacing: -0.03em; color: var(--ink); text-transform: uppercase;
+    margin-bottom: clamp(0.6rem, 1.6vh, 1rem);
+}
+.chapter-title .hl { color: var(--accent); }
+.chapter-title::after {
+    content: ''; display: block;
+    width: clamp(40px, 5vw, 60px); height: 4px;
+    background: var(--accent);
+    margin-top: clamp(0.5rem, 1.5vh, 1rem);
+}
+.chapter-layer {
+    display: inline-block; font-family: var(--font-mono);
+    font-size: clamp(0.78rem, 1.2vw, 0.95rem); letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink);
+    padding: 0.4em 0.9em;
+    border: 2px solid var(--ink); background: var(--accent-soft);
+    margin-bottom: clamp(0.7rem, 1.8vh, 1.2rem); font-weight: 700;
+}
+.chapter-questions { max-width: 68ch; margin-bottom: clamp(0.8rem, 2vh, 1.3rem); }
+.chapter-q-label {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--accent); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 0.6em; font-weight: 700;
+}
+.chapter-questions ul { list-style: none; display: flex; flex-direction: column; gap: clamp(0.3rem, 0.9vh, 0.55rem); }
+.chapter-questions ul li { font-size: var(--body-size); line-height: 1.45; padding-left: 1.6em; position: relative; color: var(--ink-soft); font-weight: 500; }
+.chapter-questions ul li::before { content: '·'; position: absolute; left: 0.4em; top: -0.1em; color: var(--accent); font-size: 1.4em; font-weight: 900; }
+.chapter-questions ul li b { color: var(--ink); font-weight: 700; }
+.chapter-slides {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--ink-mute); letter-spacing: 0.08em;
+    border-top: 1px solid var(--rule); padding-top: clamp(0.5rem, 1.3vh, 0.8rem);
+    max-width: 68ch;
+}
+.chapter-slides b { color: var(--ink); font-weight: 700; }
+
+/* deck structure roadmap (slide 2) */
+.deck-roadmap {
+    display: flex; flex-wrap: wrap; gap: 0.4em; align-items: center;
+    font-family: var(--font-mono); font-size: clamp(0.7rem, 1.05vw, 0.88rem);
+    margin-top: clamp(0.7rem, 1.6vh, 1rem); max-width: 64ch;
+}
+.deck-roadmap .step { padding: 0.35em 0.7em; border: 1.5px solid var(--ink); background: var(--bg); color: var(--ink); font-weight: 600; letter-spacing: 0.02em; }
+.deck-roadmap .step.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.deck-roadmap .arrow { color: var(--ink-mute); font-weight: 700; }
+
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+
+<!-- ==========================================================
+     SLIDE 01 · TITLE
+     ========================================================== -->
+<section class="slide title-slide" data-title="표지">
+    <div class="title-num reveal">01</div>
+    <div class="hero">
+        <div class="section-badge reveal">SECTION 01</div>
+        <h1 class="reveal">RAG<br>아키텍처 <span class="accent">설계</span></h1>
+        <p class="tagline reveal">검색으로 LLM의 세 가지 한계 보완</p>
+        <div class="meta reveal"><span>AI Service Architect</span><span>2026</span><span>1h 30m</span></div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 02 · 학습 목표 & 덱 구조
+     ========================================================== -->
+<section class="slide" data-title="학습 목표">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">02 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Learning Goals</div>
+        <h2 class="slide-title reveal">오늘의 <span class="hl">목표</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); gap: clamp(0.3rem, 0.9vh, 0.55rem);">
+            <li class="check reveal" data-i="1"><b>엔터프라이즈 RAG 5계층</b> 설명 가능</li>
+            <li class="check reveal" data-i="2">각 계층의 <b>Trade-off</b> 식별 가능</li>
+            <li class="check reveal" data-i="3">Hybrid / Reranker <b>도입 타이밍</b> 판단 가능</li>
+            <li class="check reveal" data-i="4"><b>모델·DB 선택 근거</b> 제시 가능</li>
+        </ul>
+        <div class="deck-roadmap reveal" data-i="5">
+            <span class="step">Open</span><span class="arrow">→</span>
+            <span class="step accent">Ch1 왜 RAG?</span><span class="arrow">→</span>
+            <span class="step">Ch2 5계층</span><span class="arrow">→</span>
+            <span class="step">Ch3 Parsing·Chunking</span><span class="arrow">→</span>
+            <span class="step">Ch4 Embedding</span><span class="arrow">→</span>
+            <span class="step">Ch5 Retrieval</span><span class="arrow">→</span>
+            <span class="step">Ch6 통합·Eval</span><span class="arrow">→</span>
+            <span class="step">Close</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CHAPTER 1] · 왜 RAG가 필요한가?
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Chapter 1">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">03 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 1 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">01<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">왜 <span class="hl">RAG</span>가 필요한가?</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>LLM의 <b>3가지 구조적 한계</b>는 무엇인가?</li>
+                <li>각 한계가 <b>실제 사고</b>로 어떻게 번지는가?</li>
+                <li>RAG는 정확히 무엇이고 어떻게 한계를 푸는가?</li>
+                <li><b>Fine-tuning vs RAG</b> 의사결정 기준</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 04 · LLM의 3가지 한계
+     ========================================================== -->
+<section class="slide" data-title="LLM 3 한계">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">04 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Why RAG</div>
+        <h2 class="slide-title reveal">LLM의 <span class="hl">세 가지 구조적 한계</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Knowledge Cutoff</h3>
+                <p>학습 시점 이후의 데이터 부재</p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Hallucination</h3>
+                <p>근거 없는 답을 그럴듯하게 생성</p>
+            </div>
+            <div class="num-item accent reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>Private Data 부재</h3>
+                <p>회사 내부 문서·DB 미학습</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 05 · Knowledge Cutoff 예시 (타임라인 구성)
+     ========================================================== -->
+<section class="slide" data-title="Cutoff 예시">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">05 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Example · Cutoff</div>
+        <h2 class="slide-title reveal">Knowledge Cutoff <span class="hl">실무 예시</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem);">
+            <span class="tag">2024-04 학습 모델에게</span>
+            <b>Q.</b> "2025년 11월 발표된 OpenAI Realtime API 가격은?"<br>
+            <b>A.</b> "2024년 4월 이후 정보는 제공할 수 없습니다."
+        </div>
+        <div class="diagram-box reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem);">
+            <svg viewBox="0 0 960 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Knowledge cutoff timeline with after-cutoff events">
+                <style>
+                    .axis{fill:none;stroke:#0a0a0a;stroke-width:2.5}
+                    .cutoff{fill:none;stroke:#ff3300;stroke-width:2.5;stroke-dasharray:6 4}
+                    .known{fill:#f5f5f5;stroke:#8a8a8a;stroke-width:1.5}
+                    .gap{fill:#ffe5de;stroke:#ff3300;stroke-width:1.5;stroke-dasharray:4 3}
+                    .ev{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .ev-a{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .dot{fill:#0a0a0a}
+                    .dot-r{fill:#ff3300}
+                    .t-h{font-family:'Archivo',sans-serif;font-weight:900;fill:#0a0a0a;font-size:13px;text-transform:uppercase;letter-spacing:0.05em}
+                    .t-h-w{fill:#fff}
+                    .t-r{fill:#ff3300}
+                    .t-mute{font-family:'Archivo',sans-serif;font-weight:700;fill:#8a8a8a;font-size:11px;text-transform:uppercase;letter-spacing:0.08em}
+                    .t-body{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:12px;font-weight:500}
+                    .t-num{font-family:'Archivo',sans-serif;font-weight:900;fill:#ff3300;font-size:13px;letter-spacing:-0.02em}
+                </style>
+                <defs><marker id="arrCO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <!-- Known region (학습 데이터) -->
+                <rect class="known" x="60" y="150" width="240" height="30"/>
+                <text class="t-mute" x="180" y="142" text-anchor="middle">학습 데이터</text>
+                <text class="t-body" x="180" y="170" text-anchor="middle">~ 2024-04</text>
+
+                <!-- Gap region (모델이 모르는 시기) -->
+                <rect class="gap" x="300" y="150" width="600" height="30"/>
+                <text class="t-r t-h" x="600" y="142" text-anchor="middle">모델이 모르는 시기</text>
+                <text class="t-body t-r" style="font-weight:700" x="600" y="170" text-anchor="middle">2024-04 → 현재</text>
+
+                <!-- Main timeline axis arrow -->
+                <line class="axis" x1="60" y1="195" x2="930" y2="195" marker-end="url(#arrCO)"/>
+                <text class="t-mute" x="930" y="215" text-anchor="end">시간 →</text>
+
+                <!-- Cutoff vertical line -->
+                <line class="cutoff" x1="300" y1="60" x2="300" y2="240"/>
+                <rect class="ev-a" x="232" y="38" width="136" height="28"/>
+                <text class="t-h t-h-w" x="300" y="56" text-anchor="middle">CUTOFF · 2024-04</text>
+
+                <!-- "Now" marker -->
+                <circle class="dot" cx="900" cy="195" r="6"/>
+                <text class="t-h" x="900" y="225" text-anchor="middle">NOW · 2026-04</text>
+
+                <!-- Three after-cutoff events as time markers -->
+                <!-- Event 1 -->
+                <line class="cutoff" x1="450" y1="195" x2="450" y2="245"/>
+                <circle class="dot-r" cx="450" cy="195" r="5"/>
+                <rect class="ev" x="380" y="245" width="140" height="55"/>
+                <text class="t-num" x="390" y="263">01</text>
+                <text class="t-h" x="450" y="263" text-anchor="middle">사내 공지</text>
+                <text class="t-body" x="450" y="282" text-anchor="middle">어제 올라옴</text>
+                <text class="t-body" x="450" y="296" text-anchor="middle">학습 후 발생</text>
+
+                <!-- Event 2 -->
+                <line class="cutoff" x1="600" y1="195" x2="600" y2="245"/>
+                <circle class="dot-r" cx="600" cy="195" r="5"/>
+                <rect class="ev" x="530" y="245" width="140" height="55"/>
+                <text class="t-num" x="540" y="263">02</text>
+                <text class="t-h" x="600" y="263" text-anchor="middle">개정 법령</text>
+                <text class="t-body" x="600" y="282" text-anchor="middle">이번주 개정</text>
+                <text class="t-body" x="600" y="296" text-anchor="middle">개인정보보호법</text>
+
+                <!-- Event 3 (accent) -->
+                <line class="cutoff" x1="750" y1="195" x2="750" y2="245"/>
+                <circle class="dot-r" cx="750" cy="195" r="5"/>
+                <rect class="ev-a" x="680" y="245" width="140" height="55"/>
+                <text class="t-num t-h-w" x="690" y="263">03</text>
+                <text class="t-h t-h-w" x="750" y="263" text-anchor="middle">보안 패치</text>
+                <text class="t-body" style="fill:#fff" x="750" y="282" text-anchor="middle">최근 1개월</text>
+                <text class="t-body" style="fill:#fff" x="750" y="296" text-anchor="middle">패치 가이드</text>
+            </svg>
+        </div>
+        <div class="callout ink reveal" data-i="4" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">
+            <span class="tag">핵심</span>
+            모델 교체로는 해결 안 됨 — 새 모델도 또 다른 cutoff. <b>RAG의 검색 인덱스만 즉시 갱신 가능.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 05 · Hallucination 예시 · Avianca
+     ========================================================== -->
+<section class="slide" data-title="Hallucination 예시">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">06 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Example · Hallucination</div>
+        <h2 class="slide-title reveal">Avianca 판례 <span class="hl">사건</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <span class="tag">2023 · Mata v. Avianca · 美 연방법원</span>
+            <ul class="bullet-list" style="margin-top: 0.6em;">
+                <li data-n="01">변호사가 <b>ChatGPT로 판례 조사</b></li>
+                <li data-n="02">ChatGPT가 사건명 · 법원 · 인용번호 포함 <b>6개 판례</b>를 상세 인용</li>
+                <li data-n="03">변호사가 <b>검토 없이 그대로 법원에 제출</b></li>
+                <li data-n="04">법원 확인 결과 <b>6건 전부 존재하지 않음</b></li>
+                <li data-n="05">결과: 벌금 <b>$5,000</b> + 공개 제재</li>
+            </ul>
+        </div>
+        <div class="callout ink reveal" data-i="3" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">구조적 경향</span>
+            LLM은 "모른다"보다 <b>"그럴듯함"</b>을 선호.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 06 · Private Data 부재 예시
+     ========================================================== -->
+<section class="slide" data-title="Private Data 예시">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">07 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Example · Private Data</div>
+        <h2 class="slide-title reveal">Private Data <span class="hl">부재 예시</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <span class="tag">질문</span>
+            "김영수 부장 남은 연차 며칠인가요?"
+        </div>
+        <div class="two-col reveal" data-i="3" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <div class="col-card">
+                <h3>ChatGPT (기본)</h3>
+                <ul>
+                    <li>"사내 직원 정보는 확인할 수 없습니다."</li>
+                    <li><b>정상 응답</b>: 학습되지 않은 데이터</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>ChatGPT + 사내 RAG</h3>
+                <ul>
+                    <li>HR DB 검색 → "남은 연차 7일"</li>
+                    <li><b>검색 시점 권한 제어</b>가 필수</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout ink reveal" data-i="4" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">보안 관점</span>
+            OpenAI의 사내 DB 학습 시 더 큰 <b>보안 사고</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 07 · RAG란 정확히 무엇인가
+     ========================================================== -->
+<section class="slide" data-title="RAG 정의">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">08 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Definition</div>
+        <h2 class="slide-title reveal">RAG란 <span class="hl">정확히 무엇인가</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RAG definition flow">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:14px;text-anchor:middle;text-transform:uppercase}
+                    .t-w{fill:#fff}
+                    .t-s{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:12px;text-anchor:middle;font-weight:500}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <rect class="b" x="20" y="100" width="130" height="60"/>
+                <text class="t" x="85" y="135">질문</text>
+
+                <line class="ar" x1="150" y1="130" x2="220" y2="130" marker-end="url(#arr4)"/>
+
+                <rect class="b-a" x="220" y="100" width="190" height="60"/>
+                <text class="t" x="315" y="128">검색</text>
+                <text class="t-s" x="315" y="148">관련 문서 찾기</text>
+
+                <line class="ar" x1="410" y1="130" x2="480" y2="130" marker-end="url(#arr4)"/>
+
+                <rect class="b-r" x="480" y="80" width="230" height="100"/>
+                <text class="t t-w" x="595" y="118">LLM</text>
+                <text class="t-s" style="fill:#fff" x="595" y="140">문서 + 질문</text>
+                <text class="t-s" style="fill:#fff" x="595" y="158">→ 답변 생성</text>
+
+                <line class="ar" x1="710" y1="130" x2="780" y2="130" marker-end="url(#arr4)"/>
+
+                <rect class="b" x="780" y="100" width="110" height="60"/>
+                <text class="t" x="835" y="135">답변</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 05 · Fine-tuning vs RAG
+     ========================================================== -->
+<section class="slide" data-title="Fine-tune vs RAG">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">09 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Decision #1</div>
+        <h2 class="slide-title reveal">첫 번째 의사결정<br><span class="hl">Fine-tuning</span> vs <span class="hl">RAG</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <thead>
+                <tr><th></th><th>Fine-tuning</th><th class="hl">RAG</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><b>접근 방식</b></td><td>모델 자체를 재학습</td><td>외부 지식을 검색해 주입</td></tr>
+                <tr><td><b>바꾸는 것</b></td><td>모델의 가중치</td><td>검색 인덱스</td></tr>
+                <tr><td><b>적합한 문제</b></td><td>스타일·톤·형식</td><td>사실·최신성</td></tr>
+                <tr><td><b>근거 제시</b></td><td>어려움</td><td>원문 인용 가능</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 06 · Fine-tuning vs RAG (자원·비용·운영)
+     ========================================================== -->
+<section class="slide" data-title="Fine-tune 자원 관점">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH1</span><span class="slide-num">10 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Decision #1 · Resource View</div>
+        <h2 class="slide-title reveal">자원·비용·운영 <span class="hl">관점</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <thead>
+                <tr><th></th><th>Fine-tuning</th><th class="hl">RAG</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><b>초기 비용</b></td><td>학습 GPU · 데이터셋 구축<br><span style="color:var(--ink-mute)">수백만~수천만원</span></td><td>문서 인덱싱<br><span style="color:var(--ink-mute)">수십만원 수준</span></td></tr>
+                <tr><td><b>업데이트</b></td><td>재학습 (수시간~수일)</td><td>인덱스 갱신 (수분)</td></tr>
+                <tr><td><b>거버넌스</b></td><td>모델에 내재<br><span style="color:var(--ink-mute)">삭제·감사 어려움</span></td><td>검색 단계 필터·권한 제어</td></tr>
+                <tr><td><b>팀 역량</b></td><td>ML 엔지니어 필요</td><td>백엔드·DevOps로 가능</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CHAPTER 2] · RAG 5계층 & 파이프라인
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Chapter 2">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">11 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 2 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">02<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">RAG <span class="hl">5계층</span> & 파이프라인</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>엔터프라이즈 RAG의 <b>5계층</b>은 무엇인가?</li>
+                <li>Index Time과 Query Time이 <b>한 그림</b>에 어떻게 모이는가?</li>
+                <li>이후 4개 챕터는 5계층의 어디를 다루는가? (로드맵)</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 07 · 5계층
+     ========================================================== -->
+<section class="slide" data-title="5 계층">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH2</span><span class="slide-num">12 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Architecture</div>
+        <h2 class="slide-title reveal">엔터프라이즈 RAG의 <span class="hl">5 계층</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s1-rag-5-layer.drawio · rendered SVG -->
+            <svg viewBox="0 0 840 450" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="5-layer RAG architecture">
+                <style>
+                    .row{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .row-accent{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .row-mute{fill:#f5f5f5;stroke:#0a0a0a;stroke-width:1}
+                    .lbl{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:15px;text-transform:uppercase;letter-spacing:0.02em}
+                    .lbl-sub{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:13px;font-weight:500}
+                    .tag{font-family:'Archivo',sans-serif;font-weight:900;fill:#ff3300;font-size:14px}
+                    .tag-mute{font-family:'Archivo',sans-serif;font-weight:700;fill:#0a0a0a;font-size:12px;font-style:italic}
+                </style>
+                <rect class="row" x="20" y="20" width="800" height="58"/>
+                <text class="tag" x="40" y="55">[5]</text>
+                <text class="lbl" x="85" y="55">LLM INTEGRATION &amp; RESPONSE</text>
+
+                <rect class="row-accent" x="20" y="88" width="800" height="58"/>
+                <text class="tag" x="40" y="123">[4]</text>
+                <text class="lbl" x="85" y="123">RETRIEVAL PIPELINE</text>
+                <text class="lbl-sub" x="340" y="123">· Hybrid + Reranker</text>
+
+                <rect class="row" x="20" y="156" width="800" height="58"/>
+                <text class="tag" x="40" y="191">[3]</text>
+                <text class="lbl" x="85" y="191">EMBEDDING MODEL</text>
+                <text class="lbl-sub" x="340" y="191">· 언어 · 길이 · 비용</text>
+
+                <rect class="row" x="20" y="224" width="800" height="58"/>
+                <text class="tag" x="40" y="259">[2]</text>
+                <text class="lbl" x="85" y="259">CHUNKING &amp; INDEXING</text>
+                <text class="lbl-sub" x="340" y="259">· fixed · recursive · semantic</text>
+
+                <rect class="row" x="20" y="292" width="800" height="58"/>
+                <text class="tag" x="40" y="327">[1]</text>
+                <text class="lbl" x="85" y="327">DATA INGESTION</text>
+                <text class="lbl-sub" x="340" y="327">· parsing · OCR · metadata</text>
+
+                <rect class="row-mute" x="20" y="370" width="800" height="50"/>
+                <text class="tag-mute" x="40" y="400">[0]  GOVERNANCE  ·  OBSERVABILITY  ·  EVALUATION  (cross-cutting)</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 13 · RAG 기본 파이프라인 (moved up — VectorDB 슬라이드는 Ch5로 이동)
+     ========================================================== -->
+<section class="slide" data-title="기본 파이프라인">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH2</span><span class="slide-num">13 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Pipeline</div>
+        <h2 class="slide-title reveal">RAG 기본 프로세스 <span class="hl">한 장</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s1-rag-pipeline.drawio · rendered SVG -->
+            <svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RAG pipeline index + query">
+                <style>
+                    .box{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .box-accent{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .box-red{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .box-ink{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:13px;text-anchor:middle;text-transform:uppercase}
+                    .t-w{fill:#fff}
+                    .sec{font-family:'Archivo',sans-serif;font-weight:900;fill:#ff3300;font-size:13px;text-transform:uppercase;letter-spacing:0.1em}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                    .ar-red{fill:none;stroke:#ff3300;stroke-width:2;stroke-dasharray:4 4}
+                </style>
+                <defs>
+                    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker>
+                    <marker id="arr-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff3300"/></marker>
+                </defs>
+
+                <!-- Index time label -->
+                <text class="sec" x="30" y="30">Index Time</text>
+
+                <rect class="box" x="30" y="50" width="110" height="50"/>
+                <text class="t" x="85" y="80">Docs</text>
+                <line class="ar" x1="140" y1="75" x2="180" y2="75" marker-end="url(#arr)"/>
+
+                <rect class="box" x="180" y="50" width="110" height="50"/>
+                <text class="t" x="235" y="80">Parsing</text>
+                <line class="ar" x1="290" y1="75" x2="330" y2="75" marker-end="url(#arr)"/>
+
+                <rect class="box" x="330" y="50" width="110" height="50"/>
+                <text class="t" x="385" y="80">Chunking</text>
+                <line class="ar" x1="440" y1="75" x2="480" y2="75" marker-end="url(#arr)"/>
+
+                <rect class="box" x="480" y="50" width="110" height="50"/>
+                <text class="t" x="535" y="80">Embedding</text>
+                <line class="ar" x1="590" y1="75" x2="680" y2="75" marker-end="url(#arr)"/>
+
+                <rect class="box-red" x="680" y="30" width="200" height="90"/>
+                <text class="t t-w" x="780" y="65">Vector DB</text>
+                <text class="t t-w" x="780" y="90">+ BM25 Index</text>
+
+                <!-- Query time label -->
+                <text class="sec" x="30" y="220">Query Time</text>
+
+                <rect class="box" x="30" y="240" width="130" height="50"/>
+                <text class="t" x="95" y="270">User Query</text>
+                <line class="ar" x1="160" y1="265" x2="200" y2="265" marker-end="url(#arr)"/>
+
+                <rect class="box" x="200" y="240" width="130" height="50"/>
+                <text class="t" x="265" y="265">Rewrite /</text>
+                <text class="t" x="265" y="283">Embedding</text>
+                <line class="ar" x1="330" y1="265" x2="370" y2="265" marker-end="url(#arr)"/>
+
+                <rect class="box-accent" x="370" y="240" width="170" height="50"/>
+                <text class="t" x="455" y="265">Hybrid Search</text>
+                <text class="t" x="455" y="283">(Dense + BM25)</text>
+                <line class="ar" x1="540" y1="265" x2="580" y2="265" marker-end="url(#arr)"/>
+
+                <rect class="box-accent" x="580" y="240" width="130" height="50"/>
+                <text class="t" x="645" y="265">Rerank</text>
+                <text class="t" x="645" y="283">top 5~10</text>
+                <line class="ar" x1="710" y1="265" x2="750" y2="265" marker-end="url(#arr)"/>
+
+                <rect class="box-ink" x="750" y="240" width="130" height="50"/>
+                <text class="t t-w" x="815" y="272">LLM</text>
+
+                <!-- VectorDB ↔ Hybrid -->
+                <path class="ar-red" d="M 780 120 L 780 180 L 455 180 L 455 240" marker-end="url(#arr-r)"/>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CHAPTER 3] · Layer 1·2 Parsing & Chunking
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Chapter 3">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">14 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 3 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">03<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Layer 1·2 — <span class="hl">Parsing & Chunking</span></h2>
+        <div class="chapter-questions reveal" data-i="5">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>Parsing 계층이 왜 <b>가장 과소평가</b>되는가?</li>
+                <li>문서 타입별 Parsing 도구·접근법은?</li>
+                <li><b>Chunking 4 전략</b>을 어떻게 매칭하는가?</li>
+                <li>Chunk 크기·Overlap·메타데이터는 어떻게 설계하는가?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 11 · Parsing
+     ========================================================== -->
+<section class="slide" data-title="Parsing">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">15 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 1 — Ingestion</div>
+        <h2 class="slide-title reveal">가장 <span class="hl">과소평가</span>되는 계층</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>Parsing의 함정</h3>
+                <ul>
+                    <li><b>PDF</b> — 레이아웃(표·다단) 보존</li>
+                    <li><b>HTML</b> — boilerplate 제거</li>
+                    <li><b>이미지</b> — OCR + 캡셔닝</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>도구</h3>
+                <ul>
+                    <li>Unstructured</li>
+                    <li>LlamaParse</li>
+                    <li>Azure Document Intelligence</li>
+                    <li>pymupdf</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 18 · Parsing 정보 손실 시각자료
+     ========================================================== -->
+<section class="slide" data-title="Parsing 손실">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">16 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 1 — Loss Visualization</div>
+        <h2 class="slide-title reveal">어떻게 <span class="hl">정보가 사라지는가</span></h2>
+        <div class="diagram-box reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <svg viewBox="0 0 960 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How parsing loses information">
+                <style>
+                    .page{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .page-bad{fill:#fff;stroke:#ff3300;stroke-width:2;stroke-dasharray:6 3}
+                    .cell{fill:#f5f5f5;stroke:#8a8a8a;stroke-width:1}
+                    .cell-head{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:1}
+                    .col-div{fill:none;stroke:#8a8a8a;stroke-width:1;stroke-dasharray:4 3}
+                    .t-h{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:13px;text-transform:uppercase;letter-spacing:0.04em}
+                    .t-h-w{fill:#fff}
+                    .t-c{font-family:'Nunito',sans-serif;font-weight:600;fill:#0a0a0a;font-size:12px}
+                    .t-lbl{font-family:'Archivo',sans-serif;font-weight:900;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;fill:#ff3300}
+                    .t-body{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:12px;font-weight:500}
+                    .t-body-r{fill:#ff3300;font-weight:700}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="arP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <!-- ORIGINAL PDF -->
+                <text class="t-lbl" x="30" y="25">원본 PDF</text>
+                <rect class="page" x="30" y="35" width="380" height="150"/>
+                <rect class="cell-head" x="50" y="55" width="120" height="28"/>
+                <text class="t-h t-h-w" x="65" y="74">연도</text>
+                <rect class="cell-head" x="170" y="55" width="100" height="28"/>
+                <text class="t-h t-h-w" x="185" y="74">항목</text>
+                <rect class="cell-head" x="270" y="55" width="120" height="28"/>
+                <text class="t-h t-h-w" x="285" y="74">매출</text>
+
+                <rect class="cell" x="50" y="83" width="120" height="28"/>
+                <text class="t-c" x="65" y="102">2022년</text>
+                <rect class="cell" x="170" y="83" width="100" height="28"/>
+                <text class="t-c" x="185" y="102">소프트웨어</text>
+                <rect class="cell" x="270" y="83" width="120" height="28"/>
+                <text class="t-c" x="285" y="102">8천만</text>
+
+                <rect class="cell" x="50" y="111" width="120" height="28"/>
+                <text class="t-c" x="65" y="130">2023년</text>
+                <rect class="cell" x="170" y="111" width="100" height="28"/>
+                <text class="t-c" x="185" y="130">소프트웨어</text>
+                <rect class="cell" x="270" y="111" width="120" height="28"/>
+                <text class="t-c" x="285" y="130">1억</text>
+
+                <rect class="cell" x="50" y="139" width="120" height="28"/>
+                <text class="t-c" x="65" y="158">2024년</text>
+                <rect class="cell" x="170" y="139" width="100" height="28"/>
+                <text class="t-c" x="185" y="158">소프트웨어</text>
+                <rect class="cell" x="270" y="139" width="120" height="28"/>
+                <text class="t-c" x="285" y="158">1.3억</text>
+
+                <!-- ARROW 1 -->
+                <line class="ar" x1="420" y1="110" x2="510" y2="110" marker-end="url(#arP)"/>
+                <text class="t-lbl" x="465" y="100" text-anchor="middle">Parse</text>
+
+                <!-- BROKEN OUTPUT -->
+                <text class="t-lbl" x="520" y="25">단순 텍스트 추출</text>
+                <rect class="page-bad" x="520" y="35" width="410" height="150"/>
+                <text class="t-body" x="540" y="65">연도 항목 매출</text>
+                <text class="t-body t-body-r" x="540" y="88">2022 소프트 8천 년 웨어 만</text>
+                <text class="t-body t-body-r" x="540" y="111">2023 소프트 1 년 웨어 억</text>
+                <text class="t-body t-body-r" x="540" y="134">2024 소프트 1.3 년 웨어 억</text>
+                <text class="t-body" style="font-style:italic" x="540" y="170">→ 행·열 경계가 사라짐</text>
+
+                <!-- ORIGINAL 2-COLUMN -->
+                <text class="t-lbl" x="30" y="220">원본 · 2단 편집</text>
+                <rect class="page" x="30" y="230" width="380" height="130"/>
+                <line class="col-div" x1="220" y1="240" x2="220" y2="350"/>
+                <text class="t-c" x="45" y="255">계약 제1조</text>
+                <text class="t-body" x="45" y="275">본 계약은 갑과 을</text>
+                <text class="t-body" x="45" y="293">사이의 소프트웨어</text>
+                <text class="t-body" x="45" y="311">공급에 관한</text>
+                <text class="t-body" x="45" y="329">사항을 규정한다.</text>
+
+                <text class="t-c" x="235" y="255">계약 제2조</text>
+                <text class="t-body" x="235" y="275">갑은 을에게</text>
+                <text class="t-body" x="235" y="293">계약금액을 계약</text>
+                <text class="t-body" x="235" y="311">체결일로부터</text>
+                <text class="t-body" x="235" y="329">30일 이내 지급한다.</text>
+
+                <!-- ARROW 2 -->
+                <line class="ar" x1="420" y1="295" x2="510" y2="295" marker-end="url(#arP)"/>
+                <text class="t-lbl" x="465" y="285" text-anchor="middle">Parse</text>
+
+                <!-- BROKEN 2-COLUMN -->
+                <text class="t-lbl" x="520" y="220">좌·우 단이 뒤섞임</text>
+                <rect class="page-bad" x="520" y="230" width="410" height="130"/>
+                <text class="t-body" x="540" y="253">계약 제1조 <tspan class="t-body-r">계약 제2조</tspan></text>
+                <text class="t-body" x="540" y="273">본 계약은 갑과 을 <tspan class="t-body-r">갑은 을에게</tspan></text>
+                <text class="t-body" x="540" y="293">사이의 소프트웨어 <tspan class="t-body-r">계약금액을 계약</tspan></text>
+                <text class="t-body" x="540" y="313">공급에 관한 <tspan class="t-body-r">체결일로부터</tspan></text>
+                <text class="t-body" x="540" y="333">사항을 규정한다. <tspan class="t-body-r">30일 이내 지급한다.</tspan></text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 15 · Parsing의 3가지 접근법
+     ========================================================== -->
+<section class="slide" data-title="Parsing 3 접근법">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">17 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Parse · Strategy</div>
+        <h2 class="slide-title reveal">Parsing의 <span class="hl">3가지 접근법</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="2">
+                <div class="n">01</div>
+                <h3>Simple Text</h3>
+                <p><b>pdfplumber · PyPDF2 · BS4</b><br>
+                비용 ≈ $0 · ms 단위<br>
+                <span class="muted">표·레이아웃 파괴, OCR 없음 — 단일 컬럼 텍스트용</span></p>
+            </div>
+            <div class="num-item reveal" data-i="3">
+                <div class="n">02</div>
+                <h3>Layout-aware</h3>
+                <p><b>Unstructured · Docling · Marker</b><br>
+                페이지당 수 초 · OSS 연산 비용<br>
+                <span class="muted">2단·표 구조·헤딩 인식 — 일반 기업 문서 80%</span></p>
+            </div>
+            <div class="num-item accent reveal" data-i="4">
+                <div class="n">03</div>
+                <h3>LLM · Vision</h3>
+                <p><b>LlamaParse · Azure DI · GPT-4V · Mistral OCR</b><br>
+                페이지당 $0.003~$0.03<br>
+                스캔본·복잡 표·다이어그램 — 고품질 요구용</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 16 · 2026 Parsing 도구 비교
+     ========================================================== -->
+<section class="slide" data-title="Parsing 도구 비교">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">18 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Parse · Tools 2026</div>
+        <h2 class="slide-title reveal">2026년 Parsing 도구 <span class="hl">비교</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <thead>
+                <tr><th>도구</th><th>강점</th><th>약점</th><th class="hl">적합 상황</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><b>Unstructured</b><br><span style="color:var(--ink-mute)">OSS/SaaS</span></td><td>표 정확도 1위 (0.84)<br>토큰 노이즈↓</td><td>페이지당 수 초<br>처리 속도 느림</td><td class="hl">혼합 문서 · 품질 우선</td></tr>
+                <tr><td><b>LlamaParse</b><br><span style="color:var(--ink-mute)">SaaS</span></td><td>속도 일정 ~6s<br>복잡 표·OCR 내장</td><td>데이터 외부 전송<br>페이지당 과금</td><td class="hl">클라우드 OK · 속도 우선</td></tr>
+                <tr><td><b>Docling</b><br><span style="color:var(--ink-mute)">OSS · IBM</span></td><td>계층 구조 보존<br>메타데이터 풍부</td><td>단순 문서엔<br>오버킬</td><td class="hl">위키 · 매뉴얼 · 구조 보존</td></tr>
+                <tr><td><b>Marker</b><br><span style="color:var(--ink-mute)">OSS</span></td><td>속도 최고<br>가벼운 의존성</td><td>복잡 표 셀 분할<br>오류</td><td class="hl">단순 구조 · 대량 배치</td></tr>
+            </tbody>
+        </table>
+        <div class="callout ink reveal" data-i="3" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">실전 조언</span>
+            완벽한 단일 도구 부재. 현실 해법은 <b>하이브리드 파이프라인</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 17 · 문서 타입별 Parsing 의사결정 트리
+     ========================================================== -->
+<section class="slide" data-title="Parsing 결정 트리">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">19 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Parse · Decision Tree</div>
+        <h2 class="slide-title reveal">문서 타입별 <span class="hl">의사결정 트리</span></h2>
+        <ul class="bullet-list reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); max-width: none;">
+            <li data-n="Q1"><b>이미지 스캔본?</b> (텍스트 레이어 없음)<br><span class="muted">→ OCR 필수 · LlamaParse · Azure DI · Mistral OCR</span></li>
+            <li data-n="Q2"><b>표·그래프가 핵심 정보원?</b><br><span class="muted">→ 표 정확도 우선 · Unstructured or Docling</span></li>
+            <li data-n="Q3"><b>2단 편집 · 사이드바 · 다단계 헤딩?</b><br><span class="muted">→ Layout-aware · Docling or Marker</span></li>
+            <li data-n="Q4"><b>단일 컬럼 깔끔한 텍스트</b><br><span class="muted">→ pdfplumber · Unstructured "fast" — 비용·속도 최적</span></li>
+        </ul>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">품질 검증</span>
+            파이프라인 세팅 후 <b>랜덤 10페이지 사람 검수</b> 필수.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 13 · Chunking 4 전략
+     ========================================================== -->
+<section class="slide" data-title="Chunking 4 전략">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">20 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 2 — Chunking</div>
+        <h2 class="slide-title reveal">Chunking <span class="hl">4 전략</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <thead><tr><th>전략</th><th>설명</th><th>노트</th></tr></thead>
+            <tbody>
+                <tr><td><b>Fixed-size</b></td><td>N 토큰씩 자름 (+overlap)</td><td class="hl">저렴·단순, 문맥 파괴</td></tr>
+                <tr><td><b>Recursive</b></td><td>단락→문장→단어 계층</td><td class="hl">★ 기본 권장 · 85~90% recall</td></tr>
+                <tr><td><b>Semantic</b></td><td>의미 유사도 경계</td><td>recall 91~92%, 비용↑</td></tr>
+                <tr><td><b>Document-aware</b></td><td>MD · 코드 · 표 구조</td><td>구조적 문서에 강함</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 20 · 문서 타입별 Chunking 매칭
+     ========================================================== -->
+<section class="slide" data-title="Chunking 타입별 매칭">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">21 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Chunk · By Type</div>
+        <h2 class="slide-title reveal">문서 타입별 <span class="hl">Chunking 매칭</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <thead>
+                <tr><th>문서 타입</th><th class="hl">추천 Chunking</th><th>이유</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><b>Markdown · HTML</b></td><td class="hl">Header-based + Recursive</td><td>H1/H2 = 완결 아이디어, 구조가 이미 경계</td></tr>
+                <tr><td><b>소스 코드</b></td><td class="hl">AST Function-aware</td><td>함수 단위 = 논리 단위, 중간 자르면 맥락 상실</td></tr>
+                <tr><td><b>계약 · 법령</b></td><td class="hl">Clause-based (Parent-Child)</td><td>작은 조항으로 검색, 주변 조항으로 컨텍스트</td></tr>
+                <tr><td><b>FAQ · API 문서</b></td><td class="hl">Entry-based</td><td>Q&amp;A · endpoint는 쪼개면 의미 손상</td></tr>
+                <tr><td><b>장문 리포트 · 에세이</b></td><td class="hl">Recursive 512 (+ Semantic)</td><td>벤치마크 1위 (69%) · 대부분의 기본값</td></tr>
+                <tr><td><b>표 · Excel</b></td><td class="hl">Row-based or Table Summary</td><td>각 행이 독립 의미, 큰 표는 요약+상세</td></tr>
+            </tbody>
+        </table>
+        <div class="callout ink reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <span class="tag">2026 표준</span>
+            단일 전략으로 모든 문서 처리 금지. 표준은 <b>Hybrid Chunking</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 21 · Chunk 크기·Overlap 튜닝 프로세스
+     ========================================================== -->
+<section class="slide" data-title="Chunk 튜닝 프로세스">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">22 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Chunk · Tuning</div>
+        <h2 class="slide-title reveal">Chunk 크기 · Overlap <span class="hl">튜닝 프로세스</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <div class="col-card">
+                <h3>Step 1 · 기본값 출발</h3>
+                <ul>
+                    <li><b>Chunk</b> 512 tokens</li>
+                    <li><b>Overlap</b> 10~25% (51~128)</li>
+                    <li><b>전략</b> Recursive</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>Step 2 · 베이스라인 측정</h3>
+                <ul>
+                    <li>Golden Dataset 준비</li>
+                    <li><b>Recall@5 · MRR · nDCG</b> 기록</li>
+                    <li>"출발선" 확정</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>Step 3 · 변수 1개씩 변경</h3>
+                <ul>
+                    <li><b>크기</b> 256 · 512 · 1024</li>
+                    <li><b>Overlap</b> 0% · 10% · 25%</li>
+                    <li><b>전략</b> Recursive ↔ Semantic</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Step 4 · 타입별 개별 튜닝</h3>
+                <ul>
+                    <li>법령 <b>256</b></li>
+                    <li>매뉴얼 <b>1024</b></li>
+                    <li>FAQ <b>entry-based</b></li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <span class="tag">벤치마크 근거</span>
+            Vectara 2026 · Recursive 512 = <b>69% (1위)</b> · Azure 권장 512+25% · Adaptive 87% vs Fixed 13% · Chunking이 임베딩 모델만큼 <b>영향력 큼</b> (NAACL 2025).
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 24 · 메타데이터 태깅 실전 설계
+     ========================================================== -->
+<section class="slide" data-title="메타데이터 태깅">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH3</span><span class="slide-num">23 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Metadata · Tagging</div>
+        <h2 class="slide-title reveal">메타데이터 태깅 <span class="hl">실전 설계</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="2">
+                <div class="n">T1</div>
+                <h3>항상 필수</h3>
+                <p><code style="font-family:var(--font-mono);">doc_id · doc_type · chunk_index · source_path · created_at · updated_at</code></p>
+            </div>
+            <div class="num-item reveal" data-i="3">
+                <div class="n">T2</div>
+                <h3>엔터프라이즈 필수</h3>
+                <p><code style="font-family:var(--font-mono);">access_tags · version · language · embedding_model</code></p>
+            </div>
+            <div class="num-item accent reveal" data-i="4">
+                <div class="n">T3</div>
+                <h3>검색 품질 향상</h3>
+                <p><code style="font-family:var(--font-mono);color:#fff;">section_title · page_number · bbox · summary</code></p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="5" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">경고</span>
+            나중에 추가 시 <b>전체 재인덱싱 필수</b>. 처음부터 스키마에 포함.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CHAPTER 4] · Layer 3 Embedding
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Chapter 4">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">24 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 4 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">04<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Layer 3 — <span class="hl">Embedding</span></h2>
+        <div class="chapter-questions reveal" data-i="5">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>임베딩이란 정확히 무엇인가?</li>
+                <li>2026년 주요 임베딩 모델 비교 (MTEB 기준)</li>
+                <li>임베딩 모델 선택의 <b>4가지 질문</b></li>
+                <li>모델 교체 비용을 설계에 어떻게 포함하는가?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 26 · 임베딩이란 정확히 무엇인가
+     ========================================================== -->
+<section class="slide" data-title="임베딩 정의">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH4</span><span class="slide-num">25 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 3 — Definition</div>
+        <h2 class="slide-title reveal">임베딩이란 <span class="hl">정확히 무엇인가</span></h2>
+        <div class="diagram-box reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Embedding vectors illustration">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-m{fill:#f5f5f5;stroke:#8a8a8a;stroke-width:1.5}
+                    .t{font-family:'Nunito',sans-serif;font-weight:600;fill:#0a0a0a;font-size:15px;text-anchor:middle}
+                    .t-mono{font-family:'JetBrains Mono',monospace;font-size:13px;fill:#3a3a3a;text-anchor:middle}
+                    .t-tag{font-family:'Archivo',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;fill:#ff3300;letter-spacing:0.04em;text-anchor:middle}
+                    .t-tag-mute{fill:#8a8a8a}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="arr5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <!-- Row 1 -->
+                <rect class="b-a" x="20" y="30" width="240" height="50"/>
+                <text class="t" x="140" y="60">"강아지가 뛰어간다"</text>
+                <line class="ar" x1="260" y1="55" x2="310" y2="55" marker-end="url(#arr5)"/>
+                <rect class="b" x="310" y="30" width="560" height="50"/>
+                <text class="t-mono" x="590" y="60">[0.23, -0.11, 0.87, …, 0.05]</text>
+                <rect class="b-a" x="890" y="30" width="90" height="50"/>
+                <text class="t-tag" x="935" y="60">Near</text>
+
+                <!-- Row 2 -->
+                <rect class="b-a" x="20" y="105" width="240" height="50"/>
+                <text class="t" x="140" y="135">"개가 달린다"</text>
+                <line class="ar" x1="260" y1="130" x2="310" y2="130" marker-end="url(#arr5)"/>
+                <rect class="b" x="310" y="105" width="560" height="50"/>
+                <text class="t-mono" x="590" y="135">[0.21, -0.09, 0.89, …, 0.04]</text>
+                <rect class="b-a" x="890" y="105" width="90" height="50"/>
+                <text class="t-tag" x="935" y="135">Near</text>
+
+                <!-- Row 3 -->
+                <rect class="b-m" x="20" y="180" width="240" height="50"/>
+                <text class="t" x="140" y="210">"자동차 수리"</text>
+                <line class="ar" x1="260" y1="205" x2="310" y2="205" marker-end="url(#arr5)"/>
+                <rect class="b" x="310" y="180" width="560" height="50"/>
+                <text class="t-mono" x="590" y="210">[-0.45, 0.78, -0.22, …, 0.91]</text>
+                <rect class="b-m" x="890" y="180" width="90" height="50"/>
+                <text class="t-tag t-tag-mute" x="935" y="210">Far</text>
+
+                <text class="t-tag t-tag-mute" x="500" y="275">1536 dimensions · cosine similarity</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 15 · Embedding 모델 비교
+     ========================================================== -->
+<section class="slide" data-title="Embedding 모델">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH4</span><span class="slide-num">26 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 3 — Embedding</div>
+        <h2 class="slide-title reveal">임베딩 모델 <span class="hl">비교</span> (MTEB)</h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <thead><tr><th>모델</th><th>MTEB</th><th>컨텍스트</th><th>강점</th></tr></thead>
+            <tbody>
+                <tr><td><b>Cohere embed-v4</b></td><td class="hl">65.2</td><td><b>128k</b></td><td>다국어(한국어)·긴 문서</td></tr>
+                <tr><td><b>OpenAI text-embed-3-large</b></td><td>64.6</td><td>8k</td><td>영어 범용 기준점</td></tr>
+                <tr><td><b>BGE-M3</b> <span style="color:var(--ink-mute)">(OSS)</span></td><td>63.0</td><td>8k</td><td>셀프호스팅·1000+ 언어</td></tr>
+            </tbody>
+        </table>
+        <div class="source reveal" data-i="3" style="margin-top: 1rem;">Best Embedding Models 2026 · PE Collective · Prem AI · Reintech</div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 16 · 임베딩 선택 4 질문
+     ========================================================== -->
+<section class="slide" data-title="임베딩 선택">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH4</span><span class="slide-num">27 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Decision Framework</div>
+        <h2 class="slide-title reveal">벤치마크보다 먼저 답할 <span class="hl">4 질문</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <li class="reveal" data-i="1" data-n="Q1"><b>데이터 언어</b>는? <span class="muted">→ 한국어 비중 크면 Cohere v4 / BGE-M3</span></li>
+            <li class="reveal" data-i="2" data-n="Q2"><b>문서 길이</b>는? <span class="muted">→ 계약서·백서면 128k 컨텍스트 유리</span></li>
+            <li class="reveal" data-i="3" data-n="Q3"><b>호스팅 정책</b>은? <span class="muted">→ 외부 전송 불가면 BGE-M3 셀프호스팅</span></li>
+            <li class="reveal" data-i="4" data-n="Q4"><b>차원 × 건수</b> = 스토리지 비용 <span class="muted">→ 3072차원 · 1M = VectorDB 청구서</span></li>
+        </ul>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 17 · 교체 비용
+     ========================================================== -->
+<section class="slide" data-title="교체 비용">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH4</span><span class="slide-num">28 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Migration Cost</div>
+        <h2 class="slide-title reveal">임베딩 모델 교체<br><span class="hl">= 전체 인덱스 재구축</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <span class="tag">리스크</span>
+            수천만 건이면 <b>며칠 소요</b>. 설계 시점에 교체 비용 <b>반드시</b> 추정.
+        </div>
+        <div class="callout ink reveal" data-i="3" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">해결</span>
+            메타데이터에 <code style="font-family:var(--font-mono);color:var(--ink);font-weight:700;">embedding_model_id</code> 저장 → 이중 쓰기 + 점진 마이그레이션.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CHAPTER 5] · Layer 4 Retrieval (VectorDB · Hybrid · Rerank)
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Chapter 5">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">29 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 5 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">05<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Layer 4 — <span class="hl">Retrieval</span> (Query Time)</h2>
+        <div class="chapter-questions reveal" data-i="5">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>VectorDB는 정확히 무엇을 하는가? (<b>ANN · HNSW · IVF-PQ</b>)</li>
+                <li>2026년 4대 VectorDB는 어떻게 다른가?</li>
+                <li>왜 벡터 검색 단독으론 부족한가? (<b>Hybrid · BM25</b>)</li>
+                <li>RRF로 두 검색 결과를 어떻게 합치는가?</li>
+                <li>Reranker는 왜 프로덕션의 기준선인가?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 31 · VectorDB
+     ========================================================== -->
+<section class="slide" data-title="VectorDB">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">30 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 4 — Storage</div>
+        <h2 class="slide-title reveal">VectorDB는 <span class="hl">ANN</span>을 한다</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>전통 DB</h3>
+                <ul>
+                    <li><code style="font-family:var(--font-mono);">WHERE id = 42</code></li>
+                    <li>정확 매치 (Exact match)</li>
+                    <li>B-Tree · Hash</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>VectorDB</h3>
+                <ul>
+                    <li>고차원 공간의 <b>유사 벡터</b></li>
+                    <li>근사 최근접 이웃 (ANN)</li>
+                    <li><b>HNSW</b> (기본) · IVF-PQ</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 32 · VectorDB 옵션
+     ========================================================== -->
+<section class="slide" data-title="VectorDB 옵션">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">31 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Options · 2026</div>
+        <h2 class="slide-title reveal">VectorDB 4 <span class="hl">옵션</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Pinecone</h3>
+                <p><b>관리형.</b> API Key 한 줄로 시작. 70% 관리형 점유율.</p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Qdrant</h3>
+                <p><b>Rust.</b> p50 ≈ 4ms. 풍부한 payload 필터.</p>
+            </div>
+            <div class="num-item reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>Weaviate</h3>
+                <p>Hybrid Search <b>1-쿼리</b> 내장. 모듈식 벡터라이저.</p>
+            </div>
+            <div class="num-item accent reveal" data-i="4">
+                <div class="n">04</div>
+                <h3>pgvector</h3>
+                <p>Postgres 확장. HNSW 지원. <b>트랜잭션 일관성</b>.</p>
+            </div>
+        </div>
+        <div class="source reveal" data-i="5" style="margin-top: 1rem;">Vector Database Comparison 2026 · 4xxi · Encore</div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 33 · Hybrid Why
+     ========================================================== -->
+<section class="slide" data-title="Hybrid Why">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">32 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 4 — Retrieval</div>
+        <h2 class="slide-title reveal">Dense만으로는 <span class="hl">부족</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>Dense (Vector)</h3>
+                <ul>
+                    <li><b>의미 유사성</b>에 강함</li>
+                    <li>정확 토큰 매칭 약함</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>Sparse (BM25)</h3>
+                <ul>
+                    <li><b>정확 매칭</b>에 강함</li>
+                    <li>의미 유사성 약함</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 33 · BM25 (Sparse) 원리
+     ========================================================== -->
+<section class="slide" data-title="BM25 원리">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">33 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 4 — Sparse · BM25</div>
+        <h2 class="slide-title reveal">BM25는 <span class="hl">어떻게</span> 점수를 매기는가</h2>
+        <div class="callout ink reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.4vh, 0.9rem); text-align:center; font-family:var(--font-display); font-weight:900; font-size: clamp(1rem, 2vw, 1.4rem); letter-spacing:0.05em; text-transform:uppercase; padding: clamp(0.6rem, 1.4vh, 0.9rem) clamp(1rem, 2vw, 1.5rem); border-left:none; border-top:3px solid var(--ink); border-bottom:3px solid var(--ink); color:var(--ink);">
+            BM25  =  <span style="color:var(--accent);">TF</span>  ×  <span style="color:var(--accent);">IDF</span>  ×  <span style="color:var(--accent);">Length-Norm</span>
+        </div>
+        <div class="num-grid reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.3vh, 0.9rem); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+            <div class="num-item">
+                <div class="n">01</div>
+                <h3>TF · 빈도</h3>
+                <p style="margin-top:0.3em;"><b>많이 나오면 점수 ↑</b></p>
+                <p style="margin-top:0.4em;">Doc A · 검색어 3회<br>Doc B · 검색어 1회<br>Doc C · 검색어 0회</p>
+                <p style="color:var(--accent); font-weight:700; margin-top:0.4em;">→ Doc A 점수 ↑↑↑</p>
+            </div>
+            <div class="num-item">
+                <div class="n">02</div>
+                <h3>IDF · 희귀도</h3>
+                <p style="margin-top:0.3em;"><b>희귀할수록 가치 ↑</b></p>
+                <p style="margin-top:0.4em;">"the" 흔함 → IDF ↓<br>"가격" 보통 → 중<br>"AX-2045-R" 희귀 → ↑↑</p>
+                <p style="color:var(--accent); font-weight:700; margin-top:0.4em;">→ 코드·고유명사가 강한 신호</p>
+            </div>
+            <div class="num-item accent">
+                <div class="n">03</div>
+                <h3>Length Norm</h3>
+                <p style="margin-top:0.3em;"><b>긴 문서 보정</b></p>
+                <p style="margin-top:0.4em;">짧은 문서 + 1회 → 강한 신호<br>긴 문서 + 1회 → 우연 가능 (보정)</p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">
+            <span class="tag">한 줄</span>
+            BM25는 <b>토큰 단위 정확 매칭</b>에 강하지만 의미는 모름 — Dense와 짝을 이뤄야 합니다.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 34 · Hybrid Search 정의 & 필요 예시
+     ========================================================== -->
+<section class="slide" data-title="Hybrid 정의·예시">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">34 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Hybrid Search</div>
+        <h2 class="slide-title reveal">Hybrid Search · <span class="hl">두 검색을 합친다</span></h2>
+        <div class="diagram-box reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.4vh, 0.9rem);">
+            <svg viewBox="0 0 960 180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hybrid search: dense + sparse merged">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:900;fill:#0a0a0a;font-size:14px;text-anchor:middle;text-transform:uppercase;letter-spacing:0.05em}
+                    .t-w{fill:#fff}
+                    .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;text-anchor:middle;font-weight:500}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="hyb-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <rect class="b" x="20" y="60" width="160" height="60"/>
+                <text class="t" x="100" y="90">Query</text>
+                <text class="ts" x="100" y="108">사용자 질문</text>
+
+                <line class="ar" x1="180" y1="80" x2="290" y2="50" marker-end="url(#hyb-ar)"/>
+                <line class="ar" x1="180" y1="100" x2="290" y2="130" marker-end="url(#hyb-ar)"/>
+
+                <rect class="b" x="290" y="20" width="220" height="60"/>
+                <text class="t" x="400" y="45">Dense (Vector)</text>
+                <text class="ts" x="400" y="63">의미 검색 · top 50</text>
+
+                <rect class="b-a" x="290" y="100" width="220" height="60"/>
+                <text class="t" x="400" y="125">Sparse (BM25)</text>
+                <text class="ts" x="400" y="143">정확 매칭 · top 50</text>
+
+                <line class="ar" x1="510" y1="50" x2="640" y2="80" marker-end="url(#hyb-ar)"/>
+                <line class="ar" x1="510" y1="130" x2="640" y2="100" marker-end="url(#hyb-ar)"/>
+
+                <rect class="b-r" x="640" y="60" width="160" height="60"/>
+                <text class="t t-w" x="720" y="90">RRF</text>
+                <text class="ts" style="fill:#fff" x="720" y="108">결합 · 순위 융합</text>
+
+                <line class="ar" x1="800" y1="90" x2="870" y2="90" marker-end="url(#hyb-ar)"/>
+
+                <rect class="b-i" x="870" y="60" width="80" height="60"/>
+                <text class="t t-w" x="910" y="95">Top-N</text>
+            </svg>
+        </div>
+        <div class="label-strip reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">언제 Hybrid가 필수인가</div>
+        <div class="num-grid" style="margin-top: clamp(0.3rem, 0.8vh, 0.5rem); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div class="num-item reveal" data-i="4">
+                <div class="n">01</div>
+                <h3>제품 코드</h3>
+                <p><code style="font-family:var(--font-mono);font-size:0.85em;">AX-2045-R</code> · 시리얼·SKU</p>
+            </div>
+            <div class="num-item reveal" data-i="5">
+                <div class="n">02</div>
+                <h3>법령·규정 조항</h3>
+                <p><code style="font-family:var(--font-mono);font-size:0.85em;">§14(2)</code> · 시행규칙 23조</p>
+            </div>
+            <div class="num-item reveal" data-i="6">
+                <div class="n">03</div>
+                <h3>의약품·검사 코드</h3>
+                <p>ICD-10 <code style="font-family:var(--font-mono);font-size:0.85em;">E11.9</code> · KCD 코드</p>
+            </div>
+            <div class="num-item accent reveal" data-i="7">
+                <div class="n">04</div>
+                <h3>약어·고유명사</h3>
+                <p>SLA · API · MLOps · 사내 코드네임</p>
+            </div>
+        </div>
+        <div class="callout reveal" style="margin-top: clamp(0.4rem, 1vh, 0.7rem);">
+            기업 문서엔 <b>고유명사·코드·약어가 한가득</b>. Dense 단독은 이 토큰들을 흘려보냅니다.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 20 · Reranker Why
+     ========================================================== -->
+<section class="slide" data-title="Reranker Why">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">35 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 4 — Rerank</div>
+        <h2 class="slide-title reveal">왜 <span class="hl">Reranker</span>인가</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>Retrieval <span class="sub">Recall</span></h3>
+                <ul><li>넓게 캐스팅 (top 50~100)</li></ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Reranker <span class="sub">Precision</span></h3>
+                <ul><li>컨텍스트창에 넣을 것만 (top 5~10)</li></ul>
+            </div>
+        </div>
+        <div class="stat-row reveal" data-i="3" style="margin-top: clamp(1.2rem, 3vh, 2rem);">
+            <div class="stat"><div class="num">+23.4%</div><div class="label">BEIR 벤치마크 개선<br>(Cohere Rerank 3.5)</div></div>
+            <div class="stat"><div class="num ink">30→10%</div><div class="label">무관 문단 비율<br>감소</div></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 37 · Reranker 작동 원리 & 사용 시점
+     ========================================================== -->
+<section class="slide" data-title="Reranker 원리·시점">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">36 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Reranker · How & When</div>
+        <h2 class="slide-title reveal">Reranker는 <span class="hl">어떻게</span> 작동하고 <span class="hl">언제</span> 쓰나</h2>
+        <div class="diagram-box reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.4vh, 0.9rem);">
+            <svg viewBox="0 0 960 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Reranker 2-stage pipeline: retrieve then rerank">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:900;fill:#0a0a0a;font-size:14px;text-anchor:middle;text-transform:uppercase;letter-spacing:0.05em}
+                    .t-w{fill:#fff}
+                    .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;text-anchor:middle;font-weight:500}
+                    .ts-w{fill:#fff}
+                    .lbl-stage{font-family:'Archivo',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;fill:#ff3300}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="rr-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <text class="lbl-stage" x="155" y="20">[STAGE 1] RETRIEVE — RECALL</text>
+                <text class="lbl-stage" x="615" y="20">[STAGE 2] RERANK — PRECISION</text>
+
+                <rect class="b" x="20" y="40" width="120" height="70"/>
+                <text class="t" x="80" y="68">Corpus</text>
+                <text class="ts" x="80" y="88">10K~100M+</text>
+                <text class="ts" x="80" y="102">documents</text>
+
+                <line class="ar" x1="140" y1="75" x2="180" y2="75" marker-end="url(#rr-ar)"/>
+
+                <rect class="b" x="180" y="40" width="200" height="70"/>
+                <text class="t" x="280" y="63">Retriever</text>
+                <text class="ts" x="280" y="82">Dense + BM25 (Hybrid)</text>
+                <text class="ts" x="280" y="98">bi-encoder · 빠름</text>
+
+                <line class="ar" x1="380" y1="75" x2="430" y2="75" marker-end="url(#rr-ar)"/>
+
+                <rect class="b-a" x="430" y="40" width="120" height="70"/>
+                <text class="t" x="490" y="68">Top 50~100</text>
+                <text class="ts" x="490" y="88">candidates</text>
+
+                <line class="ar" x1="550" y1="75" x2="600" y2="75" marker-end="url(#rr-ar)"/>
+
+                <rect class="b-r" x="600" y="40" width="220" height="70"/>
+                <text class="t t-w" x="710" y="63">Reranker</text>
+                <text class="ts ts-w" x="710" y="82">cross-encoder</text>
+                <text class="ts ts-w" x="710" y="98">(query, doc) 쌍 점수</text>
+
+                <line class="ar" x1="820" y1="75" x2="860" y2="75" marker-end="url(#rr-ar)"/>
+
+                <rect class="b-i" x="860" y="40" width="80" height="70"/>
+                <text class="t t-w" x="900" y="68">Top 5~10</text>
+                <text class="ts ts-w" x="900" y="88">→ LLM</text>
+
+                <!-- Bottom annotation -->
+                <text style="font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:12px;font-weight:600" x="280" y="155" text-anchor="middle">Query·Doc 따로 인코딩</text>
+                <text style="font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;font-weight:500" x="280" y="172" text-anchor="middle">미리 벡터화 가능 → 빠름</text>
+
+                <text style="font-family:'Nunito',sans-serif;fill:#ff3300;font-size:12px;font-weight:700" x="710" y="155" text-anchor="middle">Query·Doc 함께 인코딩</text>
+                <text style="font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;font-weight:500" x="710" y="172" text-anchor="middle">정밀하지만 호출당 100~600ms</text>
+            </svg>
+        </div>
+        <div class="two-col reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">
+            <div class="col-card">
+                <h3>Retriever vs Reranker</h3>
+                <ul>
+                    <li><b>Bi-encoder</b> · 따로 인코딩, 미리 벡터 저장</li>
+                    <li><b>Cross-encoder</b> · 쌍을 함께 인코딩, 더 정밀</li>
+                    <li>속도 차이 <b>~100배</b> → 2단계 분리 필수</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>언제 Reranker가 효과적인가</h3>
+                <ul>
+                    <li>Recall은 OK인데 <b>Top-K 노이즈</b>가 많을 때</li>
+                    <li>LLM <b>컨텍스트 윈도우</b> 절약 필요</li>
+                    <li>답변 품질이 무관 문단에 <b>민감한 도메인</b> (법무·의료)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 38 · Reranker 카테고리
+     ========================================================== -->
+<section class="slide" data-title="Reranker 카테고리">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH5</span><span class="slide-num">37 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Options</div>
+        <h2 class="slide-title reveal">Reranker <span class="hl">3 카테고리</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Cross-Encoder (OSS)</h3>
+                <p><code style="font-family:var(--font-mono);font-size:0.9em;">jina-reranker-v3</code> · <code style="font-family:var(--font-mono);font-size:0.9em;">bge-reranker-v2-m3</code>. 셀프호스팅.</p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Managed</h3>
+                <p>Cohere Rerank 4 (32K ctx) · Voyage Rerank 2.5. SaaS, 다국어 우수.</p>
+            </div>
+            <div class="num-item accent reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>LLM-as-a-Judge</h3>
+                <p>GPT-5.5 · Claude Opus 4.7로 rerank. 설명↑, 비용·지연↑.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CHAPTER 6] · Layer 5 + Eval + 통합
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Chapter 6">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">38 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 6 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">06<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Layer 5 + <span class="hl">평가</span> + 통합</h2>
+        <div class="chapter-questions reveal" data-i="5">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>5계층을 한 장 <b>참조 아키텍처</b>로 합치면?</li>
+                <li>RAG 평가는 왜 단계별로 분리해야 하는가?</li>
+                <li>Recall@k · MRR · nDCG는 무엇이 어떻게 다른가?</li>
+                <li>Faithfulness · Relevance · Groundedness 셋의 차이</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 40 · Layer 5 LLM Integration
+     ========================================================== -->
+<section class="slide" data-title="LLM Integration">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH6</span><span class="slide-num">39 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 5 — LLM Integration</div>
+        <h2 class="slide-title reveal">검색 결과를 <span class="hl">답변</span>으로</h2>
+        <div class="diagram-box reveal" data-i="2" style="margin-top: clamp(0.4rem, 1.2vh, 0.8rem);">
+            <svg viewBox="0 0 980 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LLM Integration: prompt assembly + citation">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .lbl{font-family:'Archivo',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;fill:#ff3300}
+                    .h{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:13px}
+                    .h-w{fill:#fff}
+                    .body{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;font-weight:500}
+                    .mono{font-family:'JetBrains Mono',monospace;fill:#0a0a0a;font-size:10px;font-weight:500}
+                    .mono-w{fill:#fff}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                    .cite{fill:#ff3300;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px}
+                </style>
+                <defs><marker id="li-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <!-- Prompt Assembly box -->
+                <text class="lbl" x="20" y="20">[1] PROMPT ASSEMBLY</text>
+                <rect class="b" x="20" y="28" width="430" height="190"/>
+                <rect class="b-a" x="34" y="42" width="402" height="40"/>
+                <text class="h" x="46" y="60">SYSTEM</text>
+                <text class="mono" x="46" y="74">"제공된 컨텍스트만 사용 · 인용 [n] 표기"</text>
+
+                <text class="h" x="46" y="100">CONTEXT (Top-K = 5)</text>
+                <text class="mono" x="46" y="118"><tspan class="cite">[1]</tspan>  연차제도_2024_개정.pdf · p.3</text>
+                <text class="mono" x="46" y="134"><tspan class="cite">[2]</tspan>  취업규칙_v3.2.pdf · §14</text>
+                <text class="mono" x="46" y="150"><tspan class="cite">[3]</tspan>  사내공지_2026Q2.md · 4번 항목</text>
+
+                <text class="h" x="46" y="178">USER QUERY</text>
+                <text class="mono" x="46" y="196">"연차 사용 기한이 어떻게 바뀌었나요?"</text>
+
+                <!-- Arrow -->
+                <line class="ar" x1="450" y1="123" x2="510" y2="123" marker-end="url(#li-ar)"/>
+
+                <!-- LLM box -->
+                <rect class="b-r" x="510" y="93" width="120" height="60"/>
+                <text class="h h-w" x="570" y="120" text-anchor="middle">LLM</text>
+                <text class="body" style="fill:#fff" x="570" y="138" text-anchor="middle">via Gateway</text>
+
+                <!-- Arrow -->
+                <line class="ar" x1="630" y1="123" x2="690" y2="123" marker-end="url(#li-ar)"/>
+
+                <!-- Response box -->
+                <text class="lbl" x="690" y="20">[2] RESPONSE</text>
+                <rect class="b" x="690" y="28" width="270" height="190"/>
+                <text class="h" x="704" y="50">답변 (스트리밍)</text>
+                <text class="body" x="704" y="72">"연차 사용 기한이 2년에서</text>
+                <text class="body" x="704" y="88">3년으로 연장됐습니다.</text>
+                <text class="body" x="704" y="104">취업규칙 §14에서 변경됐고,</text>
+                <text class="body" x="704" y="120">2026년 분부터 적용됩니다."</text>
+                <line x1="704" y1="135" x2="946" y2="135" stroke="#e5e5e5"/>
+                <text class="lbl" x="704" y="156">CITATIONS</text>
+                <text class="mono" x="704" y="174"><tspan class="cite">[1]</tspan> 연차제도_2024_개정.pdf</text>
+                <text class="mono" x="704" y="190"><tspan class="cite">[2]</tspan> 취업규칙_v3.2.pdf · §14</text>
+                <text class="mono" x="704" y="206"><tspan class="cite">[3]</tspan> 사내공지_2026Q2.md</text>
+            </svg>
+        </div>
+        <div class="num-grid reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.3vh, 0.9rem); grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));">
+            <div class="num-item">
+                <div class="n">01</div>
+                <h3>Prompt 템플릿</h3>
+                <p>System · Context · Query 분리 · "컨텍스트 외 추론 금지" 지시</p>
+            </div>
+            <div class="num-item">
+                <div class="n">02</div>
+                <h3>인용 구조</h3>
+                <p>chunk_id ↔ 원문 메타데이터 매핑 → 답변에 <code style="font-family:var(--font-mono);font-size:0.85em;">[1]</code> 표기</p>
+            </div>
+            <div class="num-item">
+                <div class="n">03</div>
+                <h3>Streaming</h3>
+                <p>토큰 단위 스트리밍 → 체감 지연 ↓<br>특히 긴 답변에 필수</p>
+            </div>
+            <div class="num-item accent">
+                <div class="n">04</div>
+                <h3>Failure 처리</h3>
+                <p>검색 0건 → "근거 없음" 안전 거절. Hallucination 방지의 마지막 게이트.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 41 · 통합 참조 아키텍처
+     ========================================================== -->
+<section class="slide" data-title="참조 아키텍처">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH6</span><span class="slide-num">40 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Reference Architecture</div>
+        <h2 class="slide-title reveal">엔터프라이즈 RAG <span class="hl">통합도</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s1-rag-reference-arch.drawio · rendered SVG -->
+            <svg viewBox="0 0 1080 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Enterprise RAG reference architecture">
+                <style>
+                    .box{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .box-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .box-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .box-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:12px;text-anchor:middle;text-transform:uppercase}
+                    .t-s{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;text-anchor:middle;font-weight:500}
+                    .t-w{fill:#fff}
+                    .sec{font-family:'Archivo',sans-serif;font-weight:900;fill:#ff3300;font-size:12px;text-transform:uppercase;letter-spacing:0.08em}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                    .ar-d{fill:none;stroke:#ff3300;stroke-width:2;stroke-dasharray:4 4}
+                </style>
+                <defs><marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker>
+                      <marker id="arr3r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff3300"/></marker>
+                </defs>
+
+                <text class="sec" x="30" y="25">Index Time</text>
+                <text class="sec" x="790" y="25">Query Time</text>
+
+                <rect class="box" x="30" y="45" width="240" height="55"/>
+                <text class="t" x="150" y="70">Source Systems</text>
+                <text class="t-s" x="150" y="88">Confluence · SharePoint · DB · S3</text>
+
+                <rect class="box" x="30" y="140" width="240" height="55"/>
+                <text class="t" x="150" y="165">Ingestion Worker</text>
+                <text class="t-s" x="150" y="183">parsing · OCR</text>
+
+                <rect class="box" x="30" y="235" width="240" height="55"/>
+                <text class="t" x="150" y="260">Chunker + Metadata</text>
+                <text class="t-s" x="150" y="278">recursive · ACL tag</text>
+
+                <rect class="box" x="30" y="330" width="240" height="50"/>
+                <text class="t" x="150" y="360">Embedding Service</text>
+
+                <rect class="box-r" x="400" y="235" width="240" height="70"/>
+                <text class="t t-w" x="520" y="265">Vector DB + BM25 Index</text>
+
+                <line class="ar" x1="150" y1="100" x2="150" y2="140" marker-end="url(#arr3)"/>
+                <line class="ar" x1="150" y1="195" x2="150" y2="235" marker-end="url(#arr3)"/>
+                <line class="ar" x1="150" y1="290" x2="150" y2="330" marker-end="url(#arr3)"/>
+                <line class="ar" x1="270" y1="355" x2="400" y2="300" marker-end="url(#arr3)"/>
+
+                <rect class="box" x="790" y="45" width="180" height="50"/>
+                <text class="t" x="880" y="75">User</text>
+
+                <rect class="box" x="790" y="125" width="220" height="50"/>
+                <text class="t" x="900" y="155">Query Rewriter</text>
+
+                <rect class="box-a" x="790" y="205" width="220" height="50"/>
+                <text class="t" x="900" y="235">Hybrid Retriever</text>
+
+                <rect class="box-a" x="790" y="285" width="220" height="50"/>
+                <text class="t" x="900" y="315">Reranker</text>
+
+                <rect class="box" x="790" y="365" width="220" height="55"/>
+                <text class="t" x="900" y="390">Prompt Build</text>
+                <text class="t-s" x="900" y="408">+ citation</text>
+
+                <rect class="box-i" x="790" y="450" width="220" height="55"/>
+                <text class="t t-w" x="900" y="483">LLM Gateway</text>
+
+                <line class="ar" x1="880" y1="95" x2="880" y2="125" marker-end="url(#arr3)"/>
+                <line class="ar" x1="900" y1="175" x2="900" y2="205" marker-end="url(#arr3)"/>
+                <line class="ar" x1="900" y1="255" x2="900" y2="285" marker-end="url(#arr3)"/>
+                <line class="ar" x1="900" y1="335" x2="900" y2="365" marker-end="url(#arr3)"/>
+                <line class="ar" x1="900" y1="420" x2="900" y2="450" marker-end="url(#arr3)"/>
+
+                <line class="ar-d" x1="640" y1="270" x2="790" y2="230" marker-end="url(#arr3r)"/>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 23 · Evaluation
+     ========================================================== -->
+<section class="slide" data-title="Evaluation">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH6</span><span class="slide-num">41 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Layer 0 — Cross-cutting</div>
+        <h2 class="slide-title reveal">측정 없이는 <span class="hl">개선도 없다</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>Retrieval 지표</h3>
+                <ul>
+                    <li>Recall @ k</li>
+                    <li>MRR</li>
+                    <li>nDCG</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>Generation 지표</h3>
+                <ul>
+                    <li>Faithfulness (근거성)</li>
+                    <li>Answer Relevance</li>
+                    <li>Groundedness</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 33 · 검색 지표 예시
+     ========================================================== -->
+<section class="slide" data-title="검색 지표 예시">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH6</span><span class="slide-num">42 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Metric · Retrieval</div>
+        <h2 class="slide-title reveal">검색 지표 <span class="hl">Recall@k · MRR · nDCG</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <span class="tag">질문</span>
+            "2024년 개인정보보호법 몇 조가 개정됐나요?"<br>정답 문서: <b>Doc-A</b> (<code style="font-family:var(--font-mono);">법령집_2024_개정판.pdf</code>)
+        </div>
+        <table class="slide-table reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.5vh, 1rem);">
+            <thead>
+                <tr><th>시스템</th><th>상위 5개 순위</th><th>Recall@5</th><th>MRR</th><th class="hl">nDCG@5</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><b>System X</b></td><td>Doc-C, <b>Doc-A</b>, Doc-F, Doc-B, Doc-D</td><td>1</td><td>0.50</td><td class="hl">0.63</td></tr>
+                <tr><td><b>System Y</b></td><td><b>Doc-A</b>, Doc-B, Doc-C, Doc-D, Doc-E</td><td>1</td><td>1.00</td><td class="hl">1.00</td></tr>
+                <tr><td><b>System Z</b></td><td>Doc-B, Doc-C, Doc-D, Doc-E, Doc-F</td><td>0</td><td>0</td><td class="hl">0</td></tr>
+            </tbody>
+        </table>
+        <div class="callout ink reveal" data-i="4" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <span class="tag">해석</span>
+            Recall: 누락 여부 · <b>MRR/nDCG: 순위 품질</b>. Recall↓ → 검색 고장, MRR↓ → Reranker 약함.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 34 · 생성 지표 예시
+     ========================================================== -->
+<section class="slide" data-title="생성 지표 예시">
+    <header class="slide-header"><span class="section-marker">01 · RAG · CH6</span><span class="slide-num">43 / 45</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Metric · Generation</div>
+        <h2 class="slide-title reveal">생성 지표 <span class="hl">Faithfulness · Relevance · Groundedness</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <span class="tag">질문 · 문서</span>
+            "연차 제도 개정 내용 알려줘"<br>문서: <code style="font-family:var(--font-mono);">연차제도_2024_개정.pdf</code> (사용 기한 <b>2년 → 3년 연장</b>)
+        </div>
+        <table class="slide-table reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.5vh, 1rem);">
+            <thead>
+                <tr><th>답변</th><th>Faithfulness</th><th>Relevance</th><th class="hl">Groundedness</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><b>A.</b> "2년에서 3년으로 연장됐습니다"</td><td>✓</td><td>✓</td><td class="hl">✓</td></tr>
+                <tr><td><b>B.</b> "연차는 소중한 권리입니다"</td><td>✓</td><td>✗</td><td class="hl">✗</td></tr>
+                <tr><td><b>C.</b> "5년으로 늘어났어요"</td><td>✗</td><td>✓</td><td class="hl">✗</td></tr>
+            </tbody>
+        </table>
+        <div class="callout ink reveal" data-i="4" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <span class="tag">원인 분리</span>
+            Faithfulness↓ <b>프롬프트/모델</b> · Relevance↓ <b>질문 해석</b> · Groundedness↓ <b>인용 구조</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     [CLOSING] · 체크리스트
+     ========================================================== -->
+<section class="slide chapter-divider" data-title="Closing">
+    <header class="slide-header"><span class="section-marker">01 · RAG</span><span class="slide-num">44 / 45</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Closing · Wrap-up</div>
+        <div class="chapter-bignum reveal" data-i="2" style="font-size: clamp(2.5rem, 8vw, 6rem);">END<span class="of"></span></div>
+        <h2 class="chapter-title reveal" data-i="3"><span class="hl">체크리스트</span> & Q&A</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 마무리에서 하는 일</div>
+            <ul>
+                <li>6 챕터를 <b>한 줄로 답할 수 있는지</b> 자가 점검</li>
+                <li>RAG 5계층을 말로 <b>설명할 수 있는지</b> 확인</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==========================================================
+     SLIDE 43 · 체크리스트 & Q&A
+     ========================================================== -->
+<section class="slide end-slide" data-title="체크리스트">
+    <div class="slide-content" style="justify-content: center;">
+        <div class="label-strip reveal">Section 1 · Wrap-up</div>
+        <h2 class="slide-title reveal">아키텍트 <span class="hl">체크리스트</span></h2>
+        <div class="chip-grid reveal" data-i="2" style="margin-top: clamp(1.2rem, 3vh, 2rem); max-width: 960px;">
+            <div class="chip">RAG 5계층 설명 가능</div>
+            <div class="chip">Fine-tune vs RAG 기준 3가지</div>
+            <div class="chip">조직 언어·문서에 맞는 임베딩 정당화</div>
+            <div class="chip">Hybrid가 필요한 문서 유형 3가지</div>
+            <div class="chip">Reranker의 비용·이득 수치</div>
+            <div class="chip">Golden Dataset 없이 개선 불가 이유</div>
+        </div>
+        <div class="big-quote reveal" data-i="3" style="margin-top: clamp(1.5rem, 4vh, 2.5rem); max-width: none;">
+            <span class="hl">Questions ?</span>
+        </div>
+    </div>
+</section>
+
+
+<script>
+/* ===========================================
+   SlidePresentation — unified controller
+   keyboard · wheel · swipe · nav · progress
+   =========================================== */
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.current = 0;
+        this.navContainer = document.getElementById('navDots');
+        this.progressBar = document.getElementById('progressBar');
+        this._buildNavDots();
+        this._setupObserver();
+        this._setupKeyboard();
+        this._setupTouch();
+        this._setupWheel();
+        this._updateProgress();
+    }
+    _buildNavDots() {
+        this.navContainer.innerHTML = '';
+        this.slides.forEach((slide, i) => {
+            const btn = document.createElement('button');
+            btn.setAttribute('aria-label', `Slide ${i + 1}: ${slide.dataset.title || ''}`);
+            btn.addEventListener('click', () => this.goTo(i));
+            this.navContainer.appendChild(btn);
+        });
+        this._syncDots();
+    }
+    _setupObserver() {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((e) => {
+                if (e.isIntersecting && e.intersectionRatio > 0.55) {
+                    e.target.classList.add('visible');
+                    this.current = this.slides.indexOf(e.target);
+                    this._syncDots();
+                    this._updateProgress();
+                }
+            });
+        }, { threshold: [0, 0.25, 0.55, 0.9] });
+        this.slides.forEach((s) => io.observe(s));
+    }
+    _setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault(); this.goTo(this.current + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault(); this.goTo(this.current - 1);
+            } else if (e.key === 'Home') { this.goTo(0); }
+            else if (e.key === 'End')   { this.goTo(this.slides.length - 1); }
+        });
+    }
+    _setupTouch() {
+        let startY = 0, startX = 0;
+        document.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY; startX = e.touches[0].clientX;
+        }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = startY - e.changedTouches[0].clientY;
+            const dx = startX - e.changedTouches[0].clientX;
+            if (Math.abs(dy) < 50 || Math.abs(dy) < Math.abs(dx)) return;
+            this.goTo(this.current + (dy > 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    _setupWheel() {
+        window.addEventListener('scroll', () => this._updateProgress(), { passive: true });
+    }
+    _syncDots() {
+        this.navContainer.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === this.current));
+    }
+    _updateProgress() {
+        const pct = (this.current / Math.max(1, this.slides.length - 1)) * 100;
+        this.progressBar.style.width = pct + '%';
+    }
+    goTo(i) {
+        const idx = Math.max(0, Math.min(this.slides.length - 1, i));
+        this.slides[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+</script>
+</body>
+</html>

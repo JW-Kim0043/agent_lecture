@@ -1,0 +1,68 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="gw-ref" name="Gateway Reference Architecture">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- App -->
+        <mxCell id="app" value="APPLICATION" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="540" y="40" width="240" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Gateway outer box -->
+        <mxCell id="gw" value="LLM GATEWAY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#FF3300;strokeWidth=3;fontFamily=Archivo;fontSize=16;fontStyle=1;verticalAlign=top;align=left;fontColor=#FF3300;spacingLeft=20;spacingTop=12;" vertex="1" parent="1">
+          <mxGeometry x="100" y="150" width="1120" height="500" as="geometry" />
+        </mxCell>
+
+        <!-- Auth -->
+        <mxCell id="auth" value="AUTH" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="210" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Prompt Registry -->
+        <mxCell id="reg" value="PROMPT REGISTRY&#10;(Langfuse)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="210" width="180" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Router -->
+        <mxCell id="router" value="ROUTER&#10;Cascade · Intent · Weighted" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="210" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Cache stack -->
+        <mxCell id="c1" value="L1 PROMPT CACHE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="300" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="L2 KV CACHE (Redis)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="345" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="L3 SEMANTIC (Vector)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="390" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Cross-cutting -->
+        <mxCell id="cc1" value="FALLBACK · CIRCUIT BREAKER · RATE LIMIT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#0A0A0A;strokeWidth=1;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="470" width="1040" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cc2" value="OBSERVABILITY (OTel) · COST TAGGING · PII FILTER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#0A0A0A;strokeWidth=1;fontFamily=Archivo;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="520" width="1040" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Providers -->
+        <mxCell id="p1" value="AZURE OPENAI&#10;(multi-region)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="720" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="OPENAI · ANTHROPIC · vLLM" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="720" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="app" target="auth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="auth" target="reg"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="reg" target="router"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="gw" target="p1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="gw" target="p2"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

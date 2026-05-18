@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Section 2 · LLM 서비스 아키텍처 패턴</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Nunito:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   SWISS MODERN · Section 2 (Gateway)
+   =========================================== */
+:root {
+    --bg: #ffffff;
+    --bg-grid: #f5f5f5;
+    --ink: #0a0a0a;
+    --ink-soft: #3a3a3a;
+    --ink-mute: #8a8a8a;
+    --rule: #e5e5e5;
+    --accent: #ff3300;
+    --accent-soft: #ffe5de;
+
+    --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body:    'Nunito', 'Archivo', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+    --title-size:  clamp(2rem, 5.5vw, 4.25rem);
+    --h2-size:     clamp(1.35rem, 3.3vw, 2.35rem);
+    --h3-size:     clamp(0.95rem, 1.95vw, 1.35rem);
+    --body-size:   clamp(0.78rem, 1.35vw, 1.05rem);
+    --small-size:  clamp(0.65rem, 1vw, 0.8rem);
+    --mono-size:   clamp(0.7rem, 1.1vw, 0.95rem);
+
+    --slide-padding: clamp(1.25rem, 4vw, 3.5rem);
+    --content-gap:   clamp(0.6rem, 1.8vw, 1.6rem);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration: 0.55s;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: var(--font-body); font-weight: 400;
+    background: var(--bg); color: var(--ink); line-height: 1.55;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; scroll-snap-align: start;
+    display: flex; flex-direction: column; position: relative;
+    background: var(--bg);
+}
+.slide::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: clamp(40px, 6vw, 80px) clamp(40px, 6vw, 80px);
+    pointer-events: none; opacity: 0.85;
+}
+.slide-content {
+    flex: 1; display: flex; flex-direction: column; justify-content: safe center;
+    max-height: 100%; overflow: hidden;
+    padding: var(--slide-padding);
+    padding-top: clamp(4rem, 9vh, 5.8rem);
+    padding-bottom: clamp(2rem, 5vh, 3.5rem);
+    position: relative; z-index: 2;
+}
+/* content-heavy slides: anchor to top so heavy content never clashes with header */
+.slide-content.dense { justify-content: flex-start; padding-top: clamp(4.2rem, 9.5vh, 6rem); }
+img, svg { max-width: 100%; max-height: min(55vh, 420px); }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(0.9rem, 3vw, 2rem); --title-size: clamp(1.4rem, 4.5vw, 2.8rem); --h2-size: clamp(1.1rem, 3vw, 1.8rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.6rem, 2.5vw, 1.5rem); --title-size: clamp(1.15rem, 4vw, 2.2rem); --body-size: clamp(0.7rem, 1.2vw, 0.95rem); }
+    .nav-dots { display: none; } .slide::before { opacity: 0.5; }
+}
+@media (max-width: 600px) {
+    :root { --title-size: clamp(1.4rem, 7vw, 2.4rem); }
+    .two-col, .num-grid { grid-template-columns: 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.15s !important; }
+    html { scroll-behavior: auto; }
+}
+
+/* frame */
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--accent); z-index: 100; transition: width 0.25s ease-out; }
+.nav-dots { position: fixed; right: clamp(0.6rem, 1.5vw, 1.25rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 50; }
+.nav-dots button { width: 10px; height: 10px; border-radius: 0; border: 1.5px solid var(--ink); background: var(--bg); padding: 0; cursor: pointer; transition: all 0.2s ease; }
+.nav-dots button.active { background: var(--accent); border-color: var(--accent); }
+
+.slide-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: clamp(1rem, 2.8vh, 1.8rem) var(--slide-padding);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: var(--small-size); color: var(--ink-mute);
+    font-family: var(--font-mono); letter-spacing: 0.1em; z-index: 10; text-transform: uppercase;
+}
+.section-marker { color: var(--accent); font-weight: 500; }
+.section-marker::before { content: ''; display: inline-block; width: 10px; height: 10px; background: var(--accent); margin-right: 0.6em; vertical-align: -1px; }
+.slide-num { font-variant-numeric: tabular-nums; }
+
+/* title slide */
+.title-slide { justify-content: flex-end; padding: 0; }
+.title-slide::before { opacity: 1; }
+.title-slide .hero {
+    position: relative; z-index: 3;
+    padding: var(--slide-padding);
+    padding-right: clamp(2rem, 10vw, 8rem);
+    padding-bottom: clamp(2rem, 6vh, 4rem);
+    max-width: 92vw;
+}
+.title-slide::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: clamp(80px, 18vw, 260px); height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent); z-index: 2;
+}
+.title-num {
+    position: absolute;
+    top: clamp(2.5rem, 8vh, 5rem); right: clamp(1.5rem, 5vw, 4rem);
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(6rem, 24vw, 20rem); line-height: 0.8;
+    color: var(--bg); -webkit-text-stroke: 2px var(--ink);
+    letter-spacing: -0.08em; z-index: 1; opacity: 0.85; user-select: none;
+}
+.section-badge {
+    display: inline-block; font-family: var(--font-mono);
+    font-size: clamp(0.75rem, 1.3vw, 1rem); letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--accent); padding: 0.3em 0 0.3em 1em;
+    border-left: 4px solid var(--accent);
+    margin-bottom: clamp(1rem, 2.5vh, 1.75rem);
+}
+.hero h1 {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: var(--title-size); line-height: 0.95;
+    letter-spacing: -0.04em; color: var(--ink);
+    margin-bottom: clamp(0.75rem, 2vh, 1.25rem); text-transform: uppercase;
+}
+.hero h1 .accent { color: var(--accent); }
+.tagline {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(1rem, 2.2vw, 1.5rem);
+    color: var(--ink-soft); letter-spacing: -0.01em;
+    margin-bottom: clamp(1.25rem, 3vh, 2rem); max-width: 44ch;
+}
+.meta {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--ink-mute); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.meta span + span::before { content: '  /  '; color: var(--rule); }
+
+/* headings */
+h2.slide-title {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: var(--h2-size); letter-spacing: -0.03em;
+    line-height: 1.05; color: var(--ink); text-transform: uppercase;
+    margin-bottom: clamp(0.5rem, 1.5vh, 1rem);
+}
+h2.slide-title .hl { color: var(--accent); }
+h2.slide-title::after {
+    content: ''; display: block;
+    width: clamp(40px, 5vw, 60px); height: 4px;
+    background: var(--accent);
+    margin-top: clamp(0.5rem, 1.5vh, 1rem);
+}
+.slide-subtitle { font-size: var(--body-size); color: var(--ink-soft); margin-bottom: clamp(0.75rem, 2vh, 1.5rem); max-width: 60ch; font-weight: 500; }
+.big-quote {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(1.2rem, 3vw, 2.2rem); line-height: 1.15;
+    letter-spacing: -0.025em; color: var(--ink); max-width: 32ch;
+    text-transform: uppercase;
+}
+.big-quote .hl { color: var(--accent); }
+
+.label-strip {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--accent); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 0.8em; font-weight: 700;
+}
+.label-strip::before { content: '—'; margin-right: 0.6em; color: var(--accent); font-family: var(--font-display); }
+
+/* reveals */
+.reveal { opacity: 0; transform: translateY(16px);
+    transition: opacity var(--duration) var(--ease-out), transform var(--duration) var(--ease-out); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0.05s; }
+.reveal:nth-child(2) { transition-delay: 0.15s; }
+.reveal:nth-child(3) { transition-delay: 0.25s; }
+.reveal:nth-child(4) { transition-delay: 0.35s; }
+.reveal:nth-child(5) { transition-delay: 0.45s; }
+.reveal:nth-child(6) { transition-delay: 0.55s; }
+.reveal:nth-child(7) { transition-delay: 0.65s; }
+.slide.visible [data-i="1"] { transition-delay: 0.10s; }
+.slide.visible [data-i="2"] { transition-delay: 0.18s; }
+.slide.visible [data-i="3"] { transition-delay: 0.26s; }
+.slide.visible [data-i="4"] { transition-delay: 0.34s; }
+.slide.visible [data-i="5"] { transition-delay: 0.42s; }
+.slide.visible [data-i="6"] { transition-delay: 0.50s; }
+.slide.visible [data-i="7"] { transition-delay: 0.58s; }
+
+/* bullet list */
+.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1.4vh, 1rem); max-width: 64ch; }
+.bullet-list li { font-size: var(--body-size); line-height: 1.5; padding-left: 3em; position: relative; color: var(--ink); font-weight: 500; }
+.bullet-list li::before { content: attr(data-n); position: absolute; left: 0; top: 0; color: var(--accent); font-family: var(--font-display); font-weight: 800; font-size: 0.95em; letter-spacing: 0.05em; }
+.bullet-list li.check::before { content: ''; width: 12px; height: 12px; background: var(--accent); top: 0.45em; left: 0.2em; }
+.bullet-list li b { color: var(--ink); font-weight: 700; }
+.bullet-list li .muted { color: var(--ink-mute); font-weight: 400; }
+
+/* num grid */
+.num-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink);
+}
+.num-item {
+    border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+    padding: clamp(1rem, 2.2vw, 1.6rem); background: var(--bg);
+    position: relative; min-height: 130px;
+    display: flex; flex-direction: column; gap: 0.4em;
+}
+.num-item .n { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.8rem, 3.5vw, 2.8rem); color: var(--accent); line-height: 0.9; letter-spacing: -0.03em; }
+.num-item h3 { font-family: var(--font-display); font-weight: 800; font-size: var(--h3-size); text-transform: uppercase; letter-spacing: -0.01em; color: var(--ink); }
+.num-item p { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.4; font-weight: 500; }
+.num-item.accent { background: var(--accent); }
+.num-item.accent .n { color: var(--bg); }
+.num-item.accent h3 { color: var(--bg); }
+.num-item.accent p { color: var(--bg); opacity: 0.9; }
+
+/* table */
+.slide-table { width: 100%; border-collapse: collapse; font-size: var(--body-size); background: var(--bg); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+.slide-table th, .slide-table td { padding: clamp(0.6rem, 1.4vh, 1rem) clamp(0.7rem, 1.3vw, 1.2rem); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; font-weight: 500; }
+.slide-table th { background: var(--ink); color: var(--bg); font-weight: 700; font-family: var(--font-display); font-size: var(--small-size); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: none; }
+.slide-table th.hl { background: var(--accent); }
+.slide-table tr:last-child td { border-bottom: none; }
+.slide-table td b { color: var(--ink); font-weight: 800; }
+.slide-table td.hl { color: var(--accent); font-weight: 700; }
+
+/* two-col */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(0.6rem, 1.5vw, 1.2rem); width: 100%; }
+.col-card { background: var(--bg); border: 2px solid var(--ink); padding: clamp(1rem, 2.3vw, 1.6rem); display: flex; flex-direction: column; gap: 0.5em; }
+.col-card.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.col-card.accent h3 { color: var(--bg); }
+.col-card.accent ul li { color: var(--bg); }
+.col-card.accent ul li::before { background: var(--bg); }
+.col-card h3 { font-family: var(--font-display); font-weight: 800; font-size: var(--h3-size); text-transform: uppercase; letter-spacing: -0.01em; margin-bottom: 0.3em; }
+.col-card h3 .sub { color: var(--ink-mute); font-weight: 400; font-size: 0.7em; margin-left: 0.5em; text-transform: none; }
+.col-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.4em; }
+.col-card ul li { font-size: var(--body-size); color: var(--ink-soft); padding-left: 1.2em; position: relative; line-height: 1.45; font-weight: 500; }
+.col-card ul li::before { content: ''; position: absolute; left: 0; top: 0.55em; width: 8px; height: 2px; background: var(--ink); }
+.col-card ul li b { color: var(--ink); font-weight: 800; }
+
+/* callout */
+.callout { background: var(--bg); border-left: 4px solid var(--accent); padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1rem, 2.5vw, 1.5rem); font-size: var(--body-size); line-height: 1.5; color: var(--ink-soft); max-width: 72ch; font-weight: 500; }
+.callout.ink { border-left-color: var(--ink); }
+.callout b { color: var(--ink); font-weight: 800; }
+.callout .tag { display: inline-block; font-family: var(--font-mono); font-size: 0.78em; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.5em; text-transform: uppercase; font-weight: 700; }
+.callout.ink .tag { color: var(--ink); }
+
+/* stat row */
+.stat-row { display: flex; gap: clamp(1.5rem, 5vw, 4rem); flex-wrap: wrap; justify-content: flex-start; align-items: flex-end; }
+.stat { text-align: left; }
+.stat .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.5rem, 7vw, 5.5rem); line-height: 0.9; color: var(--accent); letter-spacing: -0.05em; }
+.stat .num.ink { color: var(--ink); }
+.stat .label { font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-soft); margin-top: 0.6em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+
+/* chip grid */
+.chip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 0.6rem 0.8rem; }
+.chip { display: flex; gap: 0.8em; align-items: flex-start; font-size: var(--body-size); line-height: 1.4; color: var(--ink); font-weight: 500; padding: 0.7em 0.9em; background: var(--bg); border: 2px solid var(--ink); }
+.chip::before { content: ''; display: inline-block; width: 14px; height: 14px; flex-shrink: 0; border: 2px solid var(--ink); background: var(--bg); margin-top: 0.15em; }
+
+.source { margin-top: clamp(0.6rem, 1.5vh, 1rem); font-size: var(--small-size); color: var(--ink-mute); font-family: var(--font-mono); letter-spacing: 0.05em; }
+.source::before { content: '→  '; color: var(--accent); }
+
+.diagram-box { display: flex; justify-content: center; align-items: center; width: 100%; max-height: 62vh; margin: clamp(0.5rem, 1.5vh, 1rem) 0; }
+.diagram-box svg { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
+
+/* stack */
+.stack { display: flex; flex-direction: column; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); max-width: 780px; margin: 0 auto; }
+.stack .layer { padding: clamp(0.7rem, 1.7vw, 1.1rem) clamp(1rem, 2.5vw, 1.6rem); display: flex; align-items: center; gap: 1.2em; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: var(--bg); }
+.stack .layer.highlight { background: var(--accent); color: var(--bg); }
+.stack .layer.highlight .tag { color: var(--bg); }
+.stack .layer.highlight .body-text { color: var(--bg); }
+.stack .layer.highlight .body-text .sub { color: var(--bg); opacity: 0.9; }
+.stack .tag { font-family: var(--font-display); font-weight: 900; font-size: 1.1em; color: var(--accent); flex-shrink: 0; min-width: 2.5em; letter-spacing: -0.02em; }
+.stack .body-text { font-size: var(--body-size); color: var(--ink); font-weight: 500; }
+.stack .body-text b { font-weight: 800; }
+.stack .body-text .sub { color: var(--ink-soft); font-size: 0.92em; margin-left: 0.5em; }
+
+/* code block */
+.codeblock {
+    font-family: var(--font-mono); font-size: var(--mono-size);
+    line-height: 1.6; color: var(--ink);
+    background: var(--bg); border: 2px solid var(--ink);
+    padding: clamp(0.9rem, 2vw, 1.3rem) clamp(1rem, 2.5vw, 1.6rem);
+    white-space: pre; overflow-x: auto; max-height: 50vh;
+}
+.codeblock .kw { color: var(--accent); font-weight: 500; }
+.codeblock .cm { color: var(--ink-mute); font-style: italic; }
+
+/* mini grid (7 boxes) */
+.mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); }
+.mini-item { border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: clamp(0.75rem, 1.6vw, 1.1rem); text-align: left; background: var(--bg); min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; }
+.mini-item .num-lbl { font-family: var(--font-display); color: var(--accent); font-size: 0.9em; font-weight: 800; letter-spacing: 0.05em; }
+.mini-item .lbl { font-family: var(--font-display); font-weight: 800; font-size: var(--body-size); text-transform: uppercase; color: var(--ink); letter-spacing: -0.01em; }
+
+/* end slide */
+.end-slide { justify-content: center; align-items: center; position: relative; }
+.end-slide::after { content: ''; position: absolute; bottom: 0; right: 0; width: clamp(80px, 18vw, 260px); height: clamp(8px, 1.2vw, 16px); background: var(--accent); z-index: 2; }
+
+/* chapter divider */
+.chapter-divider .slide-content { justify-content: center; align-items: flex-start; }
+.chapter-divider::before { opacity: 0.5; }
+.chapter-divider::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: clamp(60px, 14vw, 200px); height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent); z-index: 2;
+}
+.chapter-marker {
+    font-family: var(--font-mono);
+    font-size: clamp(0.8rem, 1.3vw, 1rem);
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+    margin-bottom: clamp(0.4rem, 1vh, 0.7rem);
+}
+.chapter-bignum {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(3.5rem, 12vw, 9rem); line-height: 0.85;
+    letter-spacing: -0.06em; color: var(--ink);
+    margin-bottom: clamp(0.4rem, 1.2vh, 0.8rem);
+}
+.chapter-bignum .of { color: var(--ink-mute); font-size: 0.45em; margin-left: 0.2em; letter-spacing: 0; }
+.chapter-title {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(1.75rem, 4.2vw, 3rem); line-height: 1.0;
+    letter-spacing: -0.03em; color: var(--ink); text-transform: uppercase;
+    margin-bottom: clamp(0.6rem, 1.6vh, 1rem);
+}
+.chapter-title .hl { color: var(--accent); }
+.chapter-title::after {
+    content: ''; display: block;
+    width: clamp(40px, 5vw, 60px); height: 4px;
+    background: var(--accent);
+    margin-top: clamp(0.5rem, 1.5vh, 1rem);
+}
+.chapter-resp {
+    display: inline-block; font-family: var(--font-mono);
+    font-size: clamp(0.78rem, 1.2vw, 0.95rem); letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink);
+    padding: 0.4em 0.9em;
+    border: 2px solid var(--ink); background: var(--accent-soft);
+    margin-bottom: clamp(0.7rem, 1.8vh, 1.2rem); font-weight: 700;
+}
+.chapter-resp.cross { background: var(--bg); color: var(--ink-soft); }
+.chapter-questions { max-width: 68ch; margin-bottom: clamp(0.8rem, 2vh, 1.3rem); }
+.chapter-q-label {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--accent); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 0.6em; font-weight: 700;
+}
+.chapter-questions ul { list-style: none; display: flex; flex-direction: column; gap: clamp(0.3rem, 0.9vh, 0.55rem); }
+.chapter-questions ul li { font-size: var(--body-size); line-height: 1.45; padding-left: 1.6em; position: relative; color: var(--ink-soft); font-weight: 500; }
+.chapter-questions ul li::before { content: '·'; position: absolute; left: 0.4em; top: -0.1em; color: var(--accent); font-size: 1.4em; font-weight: 900; }
+.chapter-questions ul li b { color: var(--ink); font-weight: 700; }
+.chapter-slides {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--ink-mute); letter-spacing: 0.08em;
+    border-top: 1px solid var(--rule); padding-top: clamp(0.5rem, 1.3vh, 0.8rem);
+    max-width: 68ch;
+}
+.chapter-slides b { color: var(--ink); font-weight: 700; }
+
+/* 4-col gateway option comparison */
+.four-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); }
+.four-col .opt {
+    border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink);
+    padding: clamp(0.8rem, 1.8vw, 1.3rem) clamp(0.9rem, 1.8vw, 1.3rem);
+    background: var(--bg); display: flex; flex-direction: column; gap: 0.35em;
+    font-size: clamp(0.72rem, 1.1vw, 0.85rem); line-height: 1.45;
+}
+.four-col .opt.accent { background: var(--accent-soft); }
+.four-col .opt h3 { font-family: var(--font-display); font-weight: 900; font-size: clamp(1rem, 1.7vw, 1.3rem); text-transform: uppercase; letter-spacing: -0.01em; color: var(--ink); margin-bottom: 0.1em; }
+.four-col .opt h3 .sub { display: block; font-weight: 400; font-size: 0.62em; color: var(--ink-mute); text-transform: none; letter-spacing: 0.05em; margin-top: 0.25em; font-family: var(--font-mono); }
+.four-col .opt dl { display: flex; flex-direction: column; gap: 0.25em; margin-top: 0.25em; }
+.four-col .opt dt { font-family: var(--font-mono); font-size: 0.78em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.four-col .opt dd { color: var(--ink-soft); font-weight: 500; margin-bottom: 0.15em; }
+.four-col .opt dd b { color: var(--ink); font-weight: 700; }
+
+/* detailed routing strategy block (3 rows) */
+.strategy-stack { display: flex; flex-direction: column; gap: 0; border: 2px solid var(--ink); }
+.strategy-stack .row { display: grid; grid-template-columns: minmax(160px, 1.2fr) 3fr; gap: 0; border-bottom: 2px solid var(--ink); }
+.strategy-stack .row:last-child { border-bottom: none; }
+.strategy-stack .row.accent { background: var(--accent-soft); }
+.strategy-stack .lead { padding: clamp(0.7rem, 1.5vw, 1rem); background: var(--ink); color: var(--bg); display: flex; flex-direction: column; justify-content: center; gap: 0.2em; }
+.strategy-stack .row.accent .lead { background: var(--accent); }
+.strategy-stack .lead .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.5rem, 3vw, 2.2rem); line-height: 1; color: var(--bg); opacity: 0.8; letter-spacing: -0.03em; }
+.strategy-stack .lead h4 { font-family: var(--font-display); font-weight: 800; font-size: clamp(0.9rem, 1.5vw, 1.15rem); text-transform: uppercase; letter-spacing: -0.01em; color: var(--bg); line-height: 1.15; }
+.strategy-stack .body { padding: clamp(0.7rem, 1.5vw, 1rem); display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.4em 0.9em; font-size: clamp(0.72rem, 1.1vw, 0.85rem); line-height: 1.4; }
+.strategy-stack .body .slot { display: flex; flex-direction: column; gap: 0.15em; }
+.strategy-stack .body dt { font-family: var(--font-mono); font-size: 0.75em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.strategy-stack .row.accent .body dt { color: var(--ink); }
+.strategy-stack .body dd { color: var(--ink-soft); font-weight: 500; }
+.strategy-stack .body dd b { color: var(--ink); font-weight: 700; }
+
+/* provider-grouped catalog table */
+.catalog-table { width: 100%; border-collapse: collapse; font-size: clamp(0.72rem, 1.15vw, 0.92rem); background: var(--bg); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+.catalog-table th, .catalog-table td { padding: clamp(0.45rem, 1vh, 0.75rem) clamp(0.5rem, 1vw, 0.95rem); text-align: left; vertical-align: top; font-weight: 500; }
+.catalog-table th { background: var(--ink); color: var(--bg); font-weight: 700; font-family: var(--font-display); font-size: var(--small-size); text-transform: uppercase; letter-spacing: 0.1em; }
+.catalog-table td { border-bottom: 1px solid var(--rule); }
+.catalog-table tr.group-start td { border-top: 2px solid var(--ink); }
+.catalog-table tr.group-start:first-child td { border-top: none; }
+.catalog-table td.prov { font-family: var(--font-mono); font-size: 0.85em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.catalog-table td.model { font-weight: 800; color: var(--ink); }
+.catalog-table td.price { font-family: var(--font-mono); color: var(--ink); font-weight: 700; white-space: nowrap; }
+.catalog-table td.price.hl { color: var(--accent); }
+.catalog-table td.feat { color: var(--ink-soft); }
+
+/* 4-stage cascade flow */
+.cascade-flow { display: flex; flex-direction: column; gap: 0; max-width: 920px; margin: 0 auto; border: 2px solid var(--ink); }
+.cascade-flow .stage { display: grid; grid-template-columns: 60px 1fr 120px; align-items: center; padding: clamp(0.65rem, 1.5vw, 1rem) clamp(0.8rem, 1.8vw, 1.3rem); gap: clamp(0.7rem, 1.5vw, 1.2rem); border-bottom: 2px solid var(--ink); background: var(--bg); }
+.cascade-flow .stage:last-child { border-bottom: none; }
+.cascade-flow .stage.accent { background: var(--accent-soft); }
+.cascade-flow .stage .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.6rem, 3vw, 2.2rem); color: var(--accent); letter-spacing: -0.04em; line-height: 1; }
+.cascade-flow .stage .body-cell { font-size: clamp(0.78rem, 1.2vw, 0.95rem); line-height: 1.4; }
+.cascade-flow .stage .body-cell .tier { font-family: var(--font-display); font-weight: 800; font-size: 1.1em; color: var(--ink); text-transform: uppercase; letter-spacing: -0.01em; display: block; }
+.cascade-flow .stage .body-cell .sub { color: var(--ink-soft); font-weight: 500; }
+.cascade-flow .stage .body-cell .sub b { color: var(--ink); font-weight: 700; }
+.cascade-flow .stage .pct {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(1.2rem, 2.2vw, 1.7rem); color: var(--accent);
+    text-align: right; letter-spacing: -0.03em; line-height: 1;
+}
+.cascade-flow .stage .pct .pct-label { display: block; font-family: var(--font-mono); font-size: 0.4em; color: var(--ink-mute); letter-spacing: 0.08em; font-weight: 500; margin-top: 0.3em; text-transform: uppercase; }
+
+/* Responsibility badge (for ref architecture labels) */
+.resp-badge {
+    display: inline-block; font-family: var(--font-mono);
+    font-size: 0.78em; letter-spacing: 0.08em;
+    background: var(--accent); color: var(--bg);
+    padding: 0.15em 0.55em; font-weight: 700;
+    border: 1.5px solid var(--ink); vertical-align: middle;
+    margin-left: 0.4em;
+}
+
+/* checklist with responsibility grouping */
+.resp-checklist { display: flex; flex-direction: column; gap: clamp(0.35rem, 1vh, 0.6rem); max-width: 980px; }
+.resp-checklist .row {
+    display: grid; grid-template-columns: 72px 1.4fr 2.6fr;
+    gap: clamp(0.6rem, 1.4vw, 1rem); align-items: start;
+    padding: clamp(0.55rem, 1.3vh, 0.9rem) clamp(0.7rem, 1.5vw, 1.1rem);
+    border: 2px solid var(--ink); background: var(--bg);
+    font-size: clamp(0.78rem, 1.15vw, 0.95rem); line-height: 1.35;
+}
+.resp-checklist .row.cross { background: var(--bg-grid); }
+.resp-checklist .resp-n {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(1rem, 1.8vw, 1.35rem); color: var(--accent); letter-spacing: -0.02em;
+}
+.resp-checklist .resp-name { font-weight: 800; color: var(--ink); }
+.resp-checklist .resp-name .ch {
+    display: inline-block; font-family: var(--font-mono); font-size: 0.75em;
+    margin-left: 0.4em; color: var(--ink-mute); letter-spacing: 0.08em;
+    text-transform: uppercase; font-weight: 600;
+}
+.resp-checklist .row.cross .resp-name .ch { color: var(--accent); }
+.resp-checklist .resp-item { color: var(--ink-soft); font-weight: 500; }
+.resp-checklist .resp-item b { color: var(--ink); font-weight: 700; }
+
+/* print · export-to-pdf */
+@media print {
+    @page { size: 1440px 810px; margin: 0; }
+    html, body { height: auto !important; overflow: visible !important; background: #fff; scroll-snap-type: none !important; }
+    body { display: block; }
+    .progress-bar, .nav-dots { display: none !important; }
+    .slide {
+        width: 1440px !important; height: 810px !important;
+        scroll-snap-align: none !important;
+        page-break-after: always; break-after: page;
+        page-break-inside: avoid; break-inside: avoid;
+        overflow: hidden;
+    }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+    .slide::before { opacity: 0.3; }
+    /* force all reveal-animated content visible */
+    .reveal { opacity: 1 !important; transform: none !important; }
+    * { animation: none !important; transition: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+
+<!-- ===== 01 · Title ===== -->
+<section class="slide title-slide" data-title="표지">
+    <div class="title-num reveal">02</div>
+    <div class="hero">
+        <div class="section-badge reveal">SECTION 02</div>
+        <h1 class="reveal">LLM 서비스<br><span class="accent">아키텍처 패턴</span></h1>
+        <p class="tagline reveal">Gateway 하나로 가용성·비용·관측성 통합</p>
+        <div class="meta reveal"><span>AI Service Architect</span><span>2026</span><span>1h 30m</span></div>
+    </div>
+</section>
+
+
+<!-- ===== 02 · 학습 목표 & 덱 구조 ===== -->
+<section class="slide" data-title="학습 목표">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">02 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Learning Goals</div>
+        <h2 class="slide-title reveal">오늘의 <span class="hl">목표</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <div class="col-card">
+                <h3>학습 목표 5가지</h3>
+                <ul>
+                    <li>Gateway가 해결하는 <b>7가지 문제 & 6가지 책임</b></li>
+                    <li>멀티 프로바이더 <b>모델 카탈로그</b> 구분 (2026-04)</li>
+                    <li><b>Fallback / Routing / LB</b> 전략 매칭</li>
+                    <li><b>Prompt Management</b> = Code 원칙 + 대표 툴</li>
+                    <li><b>3가지 표준 캐시</b> (Prompt · Exact · Semantic) 선택 근거</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>오늘의 덱 구조</h3>
+                <ul>
+                    <li><b>Opening</b> · 표지 · 학습 목표</li>
+                    <li><b>Ch1</b> 왜 Gateway인가?</li>
+                    <li><b>Ch2</b> Gateway 구축 옵션</li>
+                    <li><b>Ch3</b> 라우팅 & LB</li>
+                    <li><b>Ch4</b> Fallback & 재시도</li>
+                    <li><b>Ch5</b> Prompt 관리</li>
+                    <li><b>Ch6</b> 캐싱 (Prompt · Exact · Semantic)</li>
+                    <li><b>Closing</b> · 통합 아키텍처 · 체크리스트</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 03 · [CHAPTER 1] 왜 Gateway인가? ===== -->
+<section class="slide chapter-divider" data-title="Chapter 1">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">03 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 1 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">01<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">왜 <span class="hl">Gateway</span>인가?</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>모델 하나만 호출하면 왜 <b>안 되는가</b>?</li>
+                <li>7가지 문제가 실제로 어떻게 <b>사고로 이어지는가</b>?</li>
+                <li>Gateway 계층의 <b>한 줄 원칙</b>은 무엇인가?</li>
+                <li>Gateway가 책임져야 할 <b>7가지</b>는 무엇인가? (오늘의 로드맵)</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 04 · 7가지 문제 ===== -->
+<section class="slide" data-title="7가지 문제">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH1</span><span class="slide-num">04 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Why Gateway</div>
+        <h2 class="slide-title reveal">"모델 하나만 쓰면 되지 않나요?"</h2>
+        <p class="slide-subtitle reveal" data-i="2">서비스가 커질수록 동시에 닥치는 <b>7가지</b> 문제.</p>
+        <div class="mini-grid">
+            <div class="mini-item reveal" data-i="1"><div class="num-lbl">01</div><div class="lbl">가용성</div></div>
+            <div class="mini-item reveal" data-i="2"><div class="num-lbl">02</div><div class="lbl">속도</div></div>
+            <div class="mini-item reveal" data-i="3"><div class="num-lbl">03</div><div class="lbl">비용</div></div>
+            <div class="mini-item reveal" data-i="4"><div class="num-lbl">04</div><div class="lbl">프롬프트 변경</div></div>
+            <div class="mini-item reveal" data-i="5"><div class="num-lbl">05</div><div class="lbl">관측성</div></div>
+            <div class="mini-item reveal" data-i="6"><div class="num-lbl">06</div><div class="lbl">거버넌스</div></div>
+            <div class="mini-item reveal" data-i="7"><div class="num-lbl">07</div><div class="lbl">다중 팀 공유</div></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- SLIDE 05 · 7가지 문제 사고 사례 -->
+<section class="slide" data-title="7가지 사고 사례">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH1</span><span class="slide-num">05 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Incident · Seven Faces</div>
+        <h2 class="slide-title reveal">7가지 문제의 <span class="hl">실제 사고</span> 사례</h2>
+        <p class="slide-subtitle reveal" data-i="2">운영 현장에서 한 번은 만나는 장면들.</p>
+        <div class="mini-grid" style="margin-top: clamp(0.6rem, 1.6vh, 1rem);">
+            <div class="mini-item reveal" data-i="1"><div class="num-lbl">01 가용성</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">Azure East US 10분 장애 → 전 서비스 다운</div></div>
+            <div class="mini-item reveal" data-i="2"><div class="num-lbl">02 속도</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">요약 API, 모델 교체 후 p95 <b style="color:var(--accent);">300ms→9s</b></div></div>
+            <div class="mini-item reveal" data-i="3"><div class="num-lbl">03 비용</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">사용자 10배 ↑, 청구서 <b style="color:var(--accent);">$2K→$38K/월</b></div></div>
+            <div class="mini-item reveal" data-i="4"><div class="num-lbl">04 프롬프트</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">한 줄 수정 → 응답 형식 붕괴, 롤백 불가</div></div>
+            <div class="mini-item reveal" data-i="5"><div class="num-lbl">05 관측성</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">월말 청구서 와서야 특정 팀이 <b>70%</b> 썼다는 걸 앎</div></div>
+            <div class="mini-item reveal" data-i="6"><div class="num-lbl">06 거버넌스</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">프롬프트 로그에 주민번호 평문 노출, 감사 지적</div></div>
+            <div class="mini-item reveal" data-i="7"><div class="num-lbl">07 다중 팀</div><div class="lbl" style="font-size: var(--small-size); font-weight: 600; text-transform: none; letter-spacing: 0;">A팀 이벤트성 트래픽이 B팀 SLO를 깨뜨림</div></div>
+        </div>
+        <div class="callout reveal" data-i="7" style="margin-top: clamp(0.6rem, 1.6vh, 1rem);">
+            7가지 모두 실제 운영 사고. <b>앱 코드 분산 금지, Gateway 한 곳으로 집결.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 06 · Gateway 원칙 ===== -->
+<section class="slide" data-title="Gateway 원칙">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH1</span><span class="slide-num">06 / 37</span></header>
+    <div class="slide-content" style="justify-content: center;">
+        <div class="label-strip reveal">Core Principle</div>
+        <div class="big-quote reveal" data-i="2" style="margin: clamp(0.8rem, 2vh, 1.3rem) 0; max-width: none;">
+            "앱은 <span class="hl">Gateway</span>에만 호출.<br>Gateway가 <span class="hl">Provider</span>에 위임."
+        </div>
+        <div class="diagram-box reveal" data-i="3">
+            <!-- s2-gateway-principle.drawio · rendered SVG -->
+            <svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LLM Gateway principle">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:14px;text-anchor:middle;text-transform:uppercase}
+                    .t-s{font-family:'Nunito',sans-serif;fill:#fff;font-size:11px;text-anchor:middle;font-weight:500}
+                    .t-w{fill:#fff}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                    .ar-th{fill:none;stroke:#0a0a0a;stroke-width:3}
+                </style>
+                <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <rect class="b" x="30" y="120" width="150" height="80"/>
+                <text class="t" x="105" y="165">Application</text>
+
+                <line class="ar-th" x1="180" y1="160" x2="290" y2="160" marker-end="url(#arr2)"/>
+
+                <rect class="b-r" x="290" y="70" width="300" height="180"/>
+                <text class="t t-w" x="440" y="110">LLM Gateway</text>
+                <text class="t-s" x="440" y="145">Auth · Route · Cache</text>
+                <text class="t-s" x="440" y="165">Fallback · Log · PII</text>
+
+                <line class="ar" x1="590" y1="110" x2="700" y2="90" marker-end="url(#arr2)"/>
+                <line class="ar" x1="590" y1="150" x2="700" y2="150" marker-end="url(#arr2)"/>
+                <line class="ar" x1="590" y1="190" x2="700" y2="210" marker-end="url(#arr2)"/>
+                <line class="ar" x1="590" y1="210" x2="700" y2="270" marker-end="url(#arr2)"/>
+
+                <rect class="b" x="700" y="60" width="180" height="45"/>
+                <text class="t" x="790" y="87">Azure OpenAI</text>
+                <rect class="b" x="700" y="125" width="180" height="45"/>
+                <text class="t" x="790" y="152">OpenAI</text>
+                <rect class="b" x="700" y="190" width="180" height="45"/>
+                <text class="t" x="790" y="217">Anthropic</text>
+                <rect class="b" x="700" y="255" width="180" height="45"/>
+                <text class="t" x="790" y="282">Self-hosted</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 07 · 7가지 책임 (로드맵) ===== -->
+<section class="slide" data-title="7가지 책임 로드맵">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH1</span><span class="slide-num">07 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Responsibilities · 오늘 섹션의 로드맵</div>
+        <h2 class="slide-title reveal">Gateway가 책임질 <span class="hl">6가지</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(0.8rem, 2vh, 1.3rem); gap: clamp(0.3rem, 0.9vh, 0.6rem);">
+            <li class="reveal" data-i="1" data-n="01"><b>라우팅 & Load Balancing</b> <span class="muted">— 어느 모델·어느 배포본으로 보낼지 결정.</span> <span class="resp-badge">Ch3</span></li>
+            <li class="reveal" data-i="2" data-n="02"><b>Fallback & 재시도</b> <span class="muted">— 429·5xx → 대체 경로, 지수 백오프.</span> <span class="resp-badge">Ch4</span></li>
+            <li class="reveal" data-i="3" data-n="03"><b>Prompt 관리</b> <span class="muted">— Version · A/B · Eval · Observability.</span> <span class="resp-badge">Ch5</span></li>
+            <li class="reveal" data-i="4" data-n="04"><b>캐싱 (3종 표준)</b> <span class="muted">— Prompt · Exact · Semantic.</span> <span class="resp-badge">Ch6</span></li>
+            <li class="reveal" data-i="5" data-n="05"><b>관측성·비용 태깅</b> <span class="muted">— 팀·서비스·기능 레벨 가시화.</span> <span class="resp-badge" style="background:var(--ink);">횡단</span></li>
+            <li class="reveal" data-i="6" data-n="06"><b>안전·거버넌스</b> <span class="muted">— PII · 금칙어 · 프롬프트 인젝션 · 감사 로그.</span> <span class="resp-badge" style="background:var(--ink);">횡단</span></li>
+        </ul>
+        <div class="callout reveal" data-i="7" style="margin-top: clamp(0.7rem, 1.8vh, 1.1rem);">
+            이 <b>6 책임</b>이 오늘 섹션의 축. 각 Chapter 표지에서 현재 위치를 재확인.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 08 · [CHAPTER 2] Gateway 구축 옵션 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 2">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">08 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 2 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">02<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Gateway <span class="hl">구축 옵션</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>어떤 Gateway 플랫폼을 <b>선택</b>할 것인가? (4 카테고리)</li>
+                <li><b>Cloud Native · SaaS · OSS Framework · 자체 구축</b>은 뭐가 다른가?</li>
+                <li>OSS Framework로 무엇이 가능한가? (LiteLLM 관리 콘솔)</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 09 · 구축 옵션 맵 ===== -->
+<section class="slide" data-title="구축 옵션 맵">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH2</span><span class="slide-num">09 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Build vs Buy · 4 Paths</div>
+        <h2 class="slide-title reveal">Gateway <span class="hl">구축 옵션</span> 맵</h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>Cloud Native</h3><p>Azure APIM + AI Gateway. <b>네이티브 통합 · 엔터프라이즈 표준.</b></p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>SaaS</h3><p>Portkey · Helicone. <b>가장 빠른 도입 · 관측성 UI.</b></p></div>
+            <div class="num-item accent reveal" data-i="3"><div class="n">03</div><h3>Opensource Framework</h3><p>LiteLLM. <b>완전 셀프호스팅 · 100+ Provider 통합.</b></p></div>
+            <div class="num-item reveal" data-i="4"><div class="n">04</div><h3>자체 구축</h3><p>FastAPI 직접 구현. <b>제어권 100% · 유지비 100%.</b></p></div>
+        </div>
+        <div class="callout reveal" data-i="5" style="margin-top: clamp(0.9rem, 2vh, 1.4rem);">
+            자체 구축은 숨은 유지비 多. <b>Cloud Native · SaaS · OSS Framework 우선 검토</b>, 자체 구축은 최후 옵션.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 10 · Gateway 4종 한판 정리 (신규) ===== -->
+<section class="slide" data-title="Gateway 4종 비교">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH2</span><span class="slide-num">10 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">4-Category Deep Dive</div>
+        <h2 class="slide-title reveal">Cloud Native · SaaS · OSS Framework · 자체구축 <span class="hl">한판 정리</span></h2>
+        <div class="four-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.1rem);">
+            <div class="opt">
+                <h3>APIM<span class="sub">Cloud Native</span></h3>
+                <dl>
+                    <dt>정체</dt><dd>Azure API Management + AI Gateway 정책</dd>
+                    <dt>기능</dt><dd>Backend Pool · Retry · Circuit Breaker · Token Rate Limit · PII</dd>
+                    <dt>강점</dt><dd>Entra ID·Key Vault·App Insights <b>네이티브 통합</b>, Private Link</dd>
+                    <dt>적합</dt><dd>Azure 중심 · 규제 산업</dd>
+                </dl>
+            </div>
+            <div class="opt">
+                <h3>Portkey · Helicone<span class="sub">SaaS</span></h3>
+                <dl>
+                    <dt>정체</dt><dd>상용 LLM Gateway SaaS (Helicone은 OSS 버전 有)</dd>
+                    <dt>기능</dt><dd>250+ Provider · Fallback · LB · Semantic Cache · Guardrail · Virtual Key · Cost Dashboard</dd>
+                    <dt>강점</dt><dd>가장 <b>빠른 도입</b>, Helicone은 관측성·비용 분석 UI 최고</dd>
+                    <dt>적합</dt><dd>멀티 프로바이더 · 빠른 프로덕션 · 비용 가시성 우선</dd>
+                </dl>
+            </div>
+            <div class="opt accent">
+                <h3>LiteLLM<span class="sub">OSS Framework</span></h3>
+                <dl>
+                    <dt>정체</dt><dd>Python 라이브러리 + Proxy Server (MIT)</dd>
+                    <dt>기능</dt><dd>100+ Provider · OpenAI 호환 API · Fallback · LB · Cache · Budget · Audit · Virtual Key</dd>
+                    <dt>강점</dt><dd><b>오픈소스·무료</b>, 완전 셀프호스팅, 데이터 유출 0</dd>
+                    <dt>적합</dt><dd>비용 최소화 · SaaS 불가 · Python 스택</dd>
+                </dl>
+            </div>
+            <div class="opt">
+                <h3>자체 구축<span class="sub">Custom</span></h3>
+                <dl>
+                    <dt>정체</dt><dd>FastAPI · Express 등 직접 구현</dd>
+                    <dt>기능</dt><dd>요구사항대로 모두 직접 구현 (Routing · Cache · Rate Limit · 감사 로그)</dd>
+                    <dt>강점</dt><dd>제어권 100%, <b>특수 라우팅·규제 요건</b> 자유</dd>
+                    <dt>적합</dt><dd>기성품으로 못 맞추는 규제·도메인 요건만</dd>
+                </dl>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.8vh, 1rem);">
+            <span class="tag">한 줄 의사결정</span>
+            <b>Azure 중심 → APIM</b> · <b>빠른 멀티프로바이더 → Portkey·Helicone</b> · <b>완전 셀프호스팅·무료 → LiteLLM</b> · <b>특수 요건만 → 자체 구축</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 11 · LiteLLM 화면 (신규) ===== -->
+<section class="slide" data-title="LiteLLM 화면">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH2</span><span class="slide-num">11 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">OSS Framework Spotlight · LiteLLM</div>
+        <h2 class="slide-title reveal">LiteLLM <span class="hl">관리 콘솔</span> — 가상 키 · 예산 · 사용량</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.4rem, 1vh, 0.7rem); gap: clamp(0.6rem, 1.5vw, 1.2rem); align-items: stretch;">
+            <div style="display:flex; flex-direction:column; gap: 0.5em;">
+                <img src="images/litellm-1.png" alt="LiteLLM admin UI: API Keys list with per-key spend, budget, team, expiry" style="width: 100%; max-height: 28vh; object-fit: contain; border: 2px solid var(--ink); background: var(--bg);">
+                <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.05em;">팀·앱별 가상 키 + 키 단위 예산·만료</div>
+                <img src="images/litellm-2.png" alt="LiteLLM spend report dialog: monthly spend chart and Top 5 users" style="width: 100%; max-height: 28vh; object-fit: contain; border: 2px solid var(--ink); background: var(--bg);">
+                <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.05em;">키별 일자 사용량 + 사용자 Top N 분해</div>
+            </div>
+            <div class="col-card accent">
+                <h3>핵심 기능 한눈에</h3>
+                <ul>
+                    <li><b>Virtual Key</b> — 팀·서비스·앱 단위 가상 키 발급, 업스트림 키는 Vault에 격리</li>
+                    <li><b>Key Budget</b> — 키별 USD 한도 + 자동 차단, 예산 초과 시 호출 거부</li>
+                    <li><b>Team / Metadata</b> — 비용 태깅으로 "어느 팀·기능"을 분해</li>
+                    <li><b>Spend Report</b> — 월간 추이 + 사용자 Top N 분해, 청구서 사후분석 0단계</li>
+                    <li><b>Expiry</b> — 키 자동 만료, 퇴사·롤오버 자동화</li>
+                </ul>
+                <h3 style="margin-top: 0.4em;">왜 OSS Framework가 강조되는가</h3>
+                <ul>
+                    <li>SaaS 동급 기능을 <b>완전 셀프호스팅</b>으로 확보 → 데이터 유출 0</li>
+                    <li>월 라이선스 비용 0, OpenAI 호환 API 한 줄 교체</li>
+                </ul>
+            </div>
+        </div>
+        <div class="source reveal" data-i="3" style="margin-top: clamp(0.3rem, 0.8vh, 0.5rem);">LiteLLM Proxy Admin UI · docs.litellm.ai</div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 3] 라우팅 & LB ===== -->
+<section class="slide chapter-divider" data-title="Chapter 3">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">12 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 3 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">03<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">라우팅 & <span class="hl">Load Balancing</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>3가지 라우팅 전략(<b>Priority / Weighted / Intent</b>)은 어떻게 다른가?</li>
+                <li>2026-04 기준, 어떤 <b>모델</b>이 어떤 업무에 맞는가?</li>
+                <li><b>Cascade</b>로 비용을 어떻게 5~10배 줄일 것인가?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 13 · 3 라우팅 ===== -->
+<section class="slide" data-title="3 라우팅">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH3</span><span class="slide-num">13 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Routing Strategy</div>
+        <h2 class="slide-title reveal">3가지 <span class="hl">라우팅 전략</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>Priority Fallback</h3><p><b>장애 대응.</b> 1 → 2 → 3순위. 429/5xx/timeout 트리거.</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>Weighted LB</h3><p><b>분산·쿼터 회피.</b> 동일 모델 멀티 리전 50/50. 확률적 분배.</p></div>
+            <div class="num-item accent reveal" data-i="3"><div class="n">03</div><h3>Intent / Semantic</h3><p><b>품질·비용 균형.</b> 쿼리 분류 후 모델 선택.</p></div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.9rem, 2vh, 1.4rem);">
+            세 전략은 대체재가 아닌 <b>보완재</b>. 실전에서는 중첩 적용.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 14 · 라우팅 전략 상세 원리 (신규) ===== -->
+<section class="slide" data-title="라우팅 상세 원리">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH3</span><span class="slide-num">14 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Deep Dive · Per-Strategy</div>
+        <h2 class="slide-title reveal">라우팅 전략 <span class="hl">상세 원리</span></h2>
+        <div class="strategy-stack reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1rem);">
+            <div class="row">
+                <div class="lead"><span class="num">01</span><h4>Priority<br>Fallback</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>동작</dt><dd>우선순위 순서대로 시도 → 실패 시 <b>다음 타겟 즉시 전환</b> (백오프 X)</dd></div>
+                    <div class="slot"><dt>트리거</dt><dd>429 · 5xx · timeout · <b>content-filter FP</b> · CB open</dd></div>
+                    <div class="slot"><dt>구성</dt><dd>우선순위 리스트 + 트리거 조건 세트 (cross-target 전환 그 자체)</dd></div>
+                    <div class="slot"><dt>장/단</dt><dd>단순·예측 가능 / 다단계 실패 시 지연 누적</dd></div>
+                </div>
+            </div>
+            <div class="row accent">
+                <div class="lead"><span class="num">02</span><h4>Weighted<br>LB</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>동작</dt><dd>가중치대로 <b>확률적 분배</b> (예: 80/20)</dd></div>
+                    <div class="slot"><dt>기준</dt><dd>정적 · 동적(지연/오류율) · 쿼터 기반</dd></div>
+                    <div class="slot"><dt>구성</dt><dd>가중치 + 분배 알고리즘(random/RR/least-loaded) + sticky</dd></div>
+                    <div class="slot"><dt>장/단</dt><dd>비용·분산 동시 / 요청별 난이도 무시 · 예측 불가</dd></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="lead"><span class="num">03</span><h4>Intent /<br>Semantic</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>동작</dt><dd>분류기가 의도·난이도 판정 → 카테고리별 모델 선택</dd></div>
+                    <div class="slot"><dt>분류 방식</dt><dd>규칙 · 소형 LLM · 임베딩 유사도 · 매니지드</dd></div>
+                    <div class="slot"><dt>구성</dt><dd>분류기 + 매핑 테이블 + 분류 실패 시 Fallback</dd></div>
+                    <div class="slot"><dt>장/단</dt><dd>요청별 정밀 최적화 / 분류 지연·비용 + 오분류 리스크</dd></div>
+                </div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.8vh, 1rem);">
+            설계 포인트: <b>전략 단일 선택</b>이 아닌 <b>레이어별 전략 배치</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 15 · 라우팅 실전 시나리오 ===== -->
+<section class="slide" data-title="라우팅 시나리오">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH3</span><span class="slide-num">15 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Routing · Scenarios</div>
+        <h2 class="slide-title reveal">3 라우팅의 <span class="hl">실전 시나리오</span></h2>
+        <div class="num-grid" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Priority Fallback</h3>
+                <p><b>실시간 고객 챗봇.</b><br>1순위 Azure East US<br>2순위 Azure West Europe<br>3순위 OpenAI 직접<br><span style="color:var(--ink-mute);">트리거: 429 · 5xx · timeout&gt;30s</span></p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Weighted LB</h3>
+                <p><b>동일 모델 멀티 리전 분산.</b><br>Azure East US <b>50%</b><br>Azure West Europe <b>50%</b><br><span style="color:var(--ink-mute);">동일 모델 (예: GPT-5.4)</span><br><span style="color:var(--accent);">효과: 단일 리전 쿼터 회피 + 장애 격리</span></p>
+            </div>
+            <div class="num-item accent reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>Intent Routing</h3>
+                <p><b>개발자 지원 Copilot.</b><br>"멀티스텝 코딩" → Opus 4.7<br>"간단 FAQ" → Haiku 4.5<br>"복잡 디버깅" → o4-mini<br>"초장문 문서" → Gemini 3.1 Pro</p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            실무는 <b>셋의 조합</b>: Intent로 티어 결정 → 각 티어마다 Fallback → 같은 티어 안에서 Weighted LB.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 16 · 모델 카탈로그 (2026-04) ===== -->
+<section class="slide" data-title="모델 카탈로그">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH3</span><span class="slide-num">16 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Multi-Provider Catalog · 2026-04</div>
+        <h2 class="slide-title reveal">멀티 프로바이더 <span class="hl">모델 카탈로그</span></h2>
+        <table class="catalog-table reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.5vh, 1rem);">
+            <thead><tr><th>프로바이더</th><th>모델</th><th>I/O ($/1M)</th><th>포지션·특징</th></tr></thead>
+            <tbody>
+                <tr class="group-start"><td class="prov" rowspan="5">OpenAI</td><td class="model">GPT-5.5</td><td class="price hl">신규</td><td class="feat">차세대 flagship · 2026-04 롤아웃</td></tr>
+                <tr><td class="model">GPT-5.4</td><td class="price">2.50 / 15</td><td class="feat">안정 flagship · 프로덕션 표준</td></tr>
+                <tr><td class="model">GPT-5.4-mini</td><td class="price">0.75 / 3</td><td class="feat">균형 티어 · 가성비</td></tr>
+                <tr><td class="model">GPT-5.4-nano</td><td class="price hl">0.20 / 0.80</td><td class="feat">초경량 분류 · Cascade 1단</td></tr>
+                <tr><td class="model">o4-mini</td><td class="price">1.10 / 4.40</td><td class="feat">Reasoning 전용 · o3-mini 후속</td></tr>
+
+                <tr class="group-start"><td class="prov" rowspan="4">Anthropic</td><td class="model">Claude Opus 4.7</td><td class="price">5 / 25</td><td class="feat">최신 flagship · <b>2026-04-16</b> · Coding·Agent 최강</td></tr>
+                <tr><td class="model">Claude Opus 4.6</td><td class="price">5 / 25</td><td class="feat">안정 flagship · 프로덕션 검증</td></tr>
+                <tr><td class="model">Claude Sonnet 4.6</td><td class="price">3 / 15</td><td class="feat">균형 · 128K 출력 + extended thinking</td></tr>
+                <tr><td class="model">Claude Haiku 4.5</td><td class="price hl">1 / 5</td><td class="feat">저가·저지연 · Cascade 1단 유력</td></tr>
+
+                <tr class="group-start"><td class="prov" rowspan="4">Google</td><td class="model">Gemini 3.1 Pro</td><td class="price">~3 / 15</td><td class="feat">Flagship · <b>2M 컨텍스트</b> · 멀티모달</td></tr>
+                <tr><td class="model">Gemini 3.1 Flash</td><td class="price">~0.30 / 1.20</td><td class="feat">균형 · 빠른 범용 응답</td></tr>
+                <tr><td class="model">Gemini 3.1 Flash Live</td><td class="price">스트리밍</td><td class="feat">실시간 음성·비전 · <b>sub-1s TTFT</b></td></tr>
+                <tr><td class="model">Gemini 3.1 Flash Lite</td><td class="price hl">~0.10 / 0.40</td><td class="feat">초경량 · 번역·분류 최저가</td></tr>
+            </tbody>
+        </table>
+        <div class="source reveal" data-i="3">공시가 기준 2026-04 · 캐시 10~25% · Batch 50% 추가 할인</div>
+    </div>
+</section>
+
+
+<!-- ===== 17 · 업무별 모델 선택 ===== -->
+<section class="slide" data-title="업무별 모델 선택">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH3</span><span class="slide-num">17 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Model · Match By Task (2026-04)</div>
+        <h2 class="slide-title reveal">업무별 <span class="hl">모델 선택</span> 예시</h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.5vh, 1rem);">
+            <thead><tr><th>업무</th><th>모델</th><th>이유</th></tr></thead>
+            <tbody>
+                <tr><td>스팸·카테고리 분류</td><td><b>GPT-5.4-nano</b> / Gemini 3.1 Flash Lite</td><td class="hl">저난도·고빈도 · 최저가</td></tr>
+                <tr><td>FAQ 자동 응답</td><td><b>Claude Haiku 4.5</b></td><td class="hl">짧고 반복됨, 저지연</td></tr>
+                <tr><td>고객 문의 요약</td><td><b>GPT-5.4-mini</b> / Claude Sonnet 4.6</td><td>품질·비용 균형</td></tr>
+                <tr><td>긴 보고서 초안 생성</td><td><b>Claude Sonnet 4.6</b></td><td>128K 출력 + 추론</td></tr>
+                <tr><td>2M 토큰 규모 문서 분석</td><td><b>Gemini 3.1 Pro</b></td><td class="hl">2M 컨텍스트 유일급</td></tr>
+                <tr><td>멀티모달 영수증 OCR</td><td><b>GPT-5.4</b> / Gemini 3.1 Pro</td><td>네이티브 이미지 입력</td></tr>
+                <tr><td>실시간 음성 상담 봇</td><td><b>Gemini 3.1 Flash Live</b></td><td class="hl">sub-1s TTFT · 스트리밍</td></tr>
+                <tr><td>장기 Agent (멀티스텝 코딩)</td><td><b>Claude Opus 4.7</b></td><td>Coding·Agent 최강</td></tr>
+                <tr><td>복잡 수학·다단계 논리</td><td><b>o4-mini</b> / Opus 4.7</td><td>Reasoning</td></tr>
+            </tbody>
+        </table>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.5vh, 1rem);">
+            <span class="tag">체크 질문</span>
+            <b>"이 업무가 진짜 플래그십을 필요로 하는가?"</b> 대부분의 답: "아니오".
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 18 · Cascade 4단 (2026-04) ===== -->
+<section class="slide" data-title="Cascade 4단">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH3</span><span class="slide-num">18 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Cost-Optimal · 4-Stage</div>
+        <h2 class="slide-title reveal">Cascade <span class="hl">라우팅</span> (2026-04)</h2>
+        <div class="cascade-flow reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1rem);">
+            <div class="stage">
+                <div class="num">1</div>
+                <div class="body-cell"><span class="tier">Haiku 4.5 / GPT-5.4-nano</span><span class="sub">저가 티어 · $1/$5 또는 $0.20/$0.80 · <b>분류·FAQ·짧은 요약</b></span></div>
+                <div class="pct">70%<span class="pct-label">1단 종결</span></div>
+            </div>
+            <div class="stage">
+                <div class="num">2</div>
+                <div class="body-cell"><span class="tier">Sonnet 4.6 / GPT-5.4-mini</span><span class="sub">균형 티어 · $3/$15 또는 $0.75/$3 · <b>문의 요약·구조화 생성</b></span></div>
+                <div class="pct">20%<span class="pct-label">2단 종결</span></div>
+            </div>
+            <div class="stage accent">
+                <div class="num">3</div>
+                <div class="body-cell"><span class="tier">Opus 4.7 / GPT-5.4 / Gemini 3.1 Pro</span><span class="sub">플래그십 티어 · <b>긴 컨텍스트·코딩·복합 질의</b></span></div>
+                <div class="pct">7%<span class="pct-label">3단 종결</span></div>
+            </div>
+            <div class="stage">
+                <div class="num">4</div>
+                <div class="body-cell"><span class="tier">o4-mini / Opus 4.7 (extended)</span><span class="sub">Reasoning 티어 · <b>수학·다단계 논리·검증 실패 재시도</b></span></div>
+                <div class="pct">3%<span class="pct-label">최종</span></div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.8vh, 1rem);">
+            <span class="tag">효과</span>
+            평균 토큰 비용 <b>플래그십 단일 대비 5~10배↓</b> · 평균 지연 <b>약 3배↓</b> (대부분이 저가·빠른 모델에서 종결)
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 19 · [CHAPTER 4] Fallback & 재시도 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 4">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">19 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 4 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">04<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Fallback & <span class="hl">재시도</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>언제 Fallback을 <b>트리거</b>할 것인가?</li>
+                <li>백오프 · <b>Idempotency</b>는 어떻게 보장하는가?</li>
+                <li>Fallback 동작은 어떻게 <b>관측</b>할 것인가?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 20 · Fallback 체크 ===== -->
+<section class="slide" data-title="Fallback 체크">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH4</span><span class="slide-num">20 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Fallback Design</div>
+        <h2 class="slide-title reveal">Fallback <span class="hl">설계 체크</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <li class="reveal" data-i="1" data-n="01"><b>트리거</b> <span class="muted">— 429 / 5xx / timeout / content-filter false-positive / CB open</span></li>
+            <li class="reveal" data-i="2" data-n="02"><b>백오프</b> <span class="muted">— <b>같은 타겟 재시도</b>에만 지수+지터. 다음 fallback 타겟 전환은 즉시</span></li>
+            <li class="reveal" data-i="3" data-n="03"><b>Idempotency</b> <span class="muted">— Tool 호출 재시도 시 치명적. 멱등 키 필수</span></li>
+            <li class="reveal" data-i="4" data-n="04"><b>관측성</b> <span class="muted">— "왜 Fallback됐는가" trace에 기록</span></li>
+        </ul>
+        <div class="callout reveal" data-i="5" style="margin-top: clamp(0.9rem, 2vh, 1.4rem);">
+            <span class="tag">흔한 사고</span>
+            멱등 키 부재 → 재시도 시 <b>이메일 2회 발송, 결제 2회 청구</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 21 · Fallback 4요소 상세 (신규) ===== -->
+<section class="slide" data-title="Fallback 4요소 상세">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH4</span><span class="slide-num">21 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Deep Dive · 4 Elements</div>
+        <h2 class="slide-title reveal">Fallback 4요소 <span class="hl">상세</span></h2>
+        <div class="strategy-stack reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.5vh, 0.9rem);">
+            <div class="row">
+                <div class="lead"><span class="num">01</span><h4>트리거<br>(Trigger)</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>명확한 실패</dt><dd>429 rate limit · 5xx 서버 오류 · timeout(&gt;N초)</dd></div>
+                    <div class="slot"><dt>숨은 실패</dt><dd><b>content-filter false positive</b> · schema 검증 실패 · 응답 길이 0</dd></div>
+                    <div class="slot"><dt>상태 기반</dt><dd>Circuit Breaker <b>open</b> 상태면 해당 타겟 건너뜀</dd></div>
+                    <div class="slot"><dt>주의</dt><dd>4xx 중 <b>400 Bad Request는 재시도 금지</b> — 요청 자체가 잘못된 경우 반복해도 실패</dd></div>
+                </div>
+            </div>
+            <div class="row accent">
+                <div class="lead"><span class="num">02</span><h4>백오프<br>(Backoff)</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>적용 범위</dt><dd><b>같은 타겟 재시도에만</b> · 다른 fallback 타겟 전환은 <b>즉시</b> (지연 X)</dd></div>
+                    <div class="slot"><dt>지수 증가</dt><dd>1s → 2s → 4s → 8s (base × 2<sup>n</sup>)</dd></div>
+                    <div class="slot"><dt>Jitter</dt><dd>각 지연에 <b>±20% 랜덤</b> 추가 — thundering herd 방지</dd></div>
+                    <div class="slot"><dt>상한</dt><dd>max_delay = 60s · LLM은 <b>max_retries = 1~2회</b> 권장</dd></div>
+                    <div class="slot"><dt>Retry-After 존중</dt><dd>서버가 <code style="font-family:var(--font-mono);">Retry-After</code> 헤더를 주면 계산값 대신 그 값을 사용</dd></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="lead"><span class="num">03</span><h4>Idempotency<br>(멱등성)</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>왜 필요</dt><dd>재시도 시 Tool 호출 = <b>이메일 2번, 결제 2번</b> 사고</dd></div>
+                    <div class="slot"><dt>키 설계</dt><dd><code style="font-family:var(--font-mono);">Idempotency-Key: {user}-{tool}-{hash(body)}-{ts}</code></dd></div>
+                    <div class="slot"><dt>저장소</dt><dd>Redis/DB에 <b>24h TTL</b> — 동일 키 재호출 시 캐시된 결과 반환</dd></div>
+                    <div class="slot"><dt>적용 범위</dt><dd>side-effect 있는 Tool 전부 — 결제·메일·DB write·외부 API</dd></div>
+                </div>
+            </div>
+            <div class="row accent">
+                <div class="lead"><span class="num">04</span><h4>관측성<br>(Observability)</h4></div>
+                <div class="body">
+                    <div class="slot"><dt>필수 기록</dt><dd>Fallback 발생 <b>시점·사유·대체 경로·시도 횟수</b></dd></div>
+                    <div class="slot"><dt>Trace 속성</dt><dd><code style="font-family:var(--font-mono);">fallback.reason</code> · <code style="font-family:var(--font-mono);">fallback.from</code> · <code style="font-family:var(--font-mono);">fallback.to</code> · <code style="font-family:var(--font-mono);">retry.count</code></dd></div>
+                    <div class="slot"><dt>알람</dt><dd>Fallback 비율 <b>임계치 초과</b> 시 알람 — Primary 장애 조기 감지</dd></div>
+                    <div class="slot"><dt>대시보드</dt><dd>경로별 성공률·평균 재시도 수·timeout 분포</dd></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 22 · [CHAPTER 5] Prompt 관리 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 5">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">22 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 5 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">05<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3"><span class="hl">Prompt</span> 관리</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>왜 <b>"프롬프트는 코드"</b>로 취급해야 하는가?</li>
+                <li>대표 툴(<b>Langfuse / PromptLayer / Braintrust</b> 등) 차이는?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 22 · Prompt=Code ===== -->
+<section class="slide" data-title="Prompt=Code">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH5</span><span class="slide-num">23 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Prompt Management</div>
+        <h2 class="slide-title reveal">Prompt = <span class="hl">Code</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>Git 버전</h3><p>변경 이력 추적</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>PR 리뷰</h3><p>승인 워크플로우</p></div>
+            <div class="num-item reveal" data-i="3"><div class="n">03</div><h3>배포 · 롤백</h3><p>플래그 플립으로 즉시</p></div>
+            <div class="num-item accent reveal" data-i="4"><div class="n">04</div><h3>자동 Eval</h3><p>regression set 실행</p></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 대표 툴 ===== -->
+<section class="slide" data-title="대표 툴">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH5</span><span class="slide-num">24 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Tool Landscape</div>
+        <h2 class="slide-title reveal">대표 툴 <span class="hl">비교</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <thead><tr><th>툴</th><th>특징</th><th>추천 상황</th></tr></thead>
+            <tbody>
+                <tr><td><b>Langfuse</b> <span style="color:var(--ink-mute);">(OSS)</span></td><td>Prompt 버전 + Trace + A/B</td><td class="hl">내부 호스팅 필요</td></tr>
+                <tr><td><b>PromptLayer</b></td><td>버전·Eval·Regression</td><td>SaaS로 바로 시작</td></tr>
+                <tr><td><b>Braintrust</b></td><td>Eval 중심 실험 플랫폼</td><td>평가가 최우선</td></tr>
+                <tr><td><b>Traceloop</b></td><td>Prompt Registry + OTel</td><td>OTel 기반 관측</td></tr>
+                <tr><td><b>Maxim AI</b></td><td>Prompt + Simulation + Eval</td><td>End-to-end 통합</td></tr>
+            </tbody>
+        </table>
+        <div class="source reveal" data-i="3" style="margin-top: 1rem;">Confident AI 2026 Tool Comparison · Langfuse Docs</div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 6] 캐싱 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 6">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">25 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 6 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">06<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">캐싱 <span class="hl">(Prompt · Exact · Semantic)</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>LLM 서비스의 <b>3가지 표준 캐시</b>는 어떻게 다른가?</li>
+                <li>Prompt / Exact / Semantic Cache 각각 <b>무엇인가</b>? (개념)</li>
+                <li>Prompt Cache는 <b>왜·어떻게</b> 작동하나? (원리)</li>
+                <li>Exact (Gateway KV) · Semantic (Vector)의 역할·리스크·적중률은?</li>
+                <li>어떤 순서로 <b>도입</b>할 것인가? 오적중 리스크는?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 28 · LLM 캐시 3종 (표준) ===== -->
+<section class="slide" data-title="LLM 캐시 3종">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">26 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">LLM Cache · Industry Standard (2026)</div>
+        <h2 class="slide-title reveal">LLM 캐시 <span class="hl">3가지 표준 유형</span></h2>
+        <p class="slide-subtitle reveal" data-i="2">Portkey · LiteLLM · Langfuse · Redis · GPTCache 공통 용어.</p>
+        <div class="num-grid" style="margin-top: clamp(0.5rem, 1.3vh, 0.8rem); grid-template-columns: repeat(3, 1fr);">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Prompt Cache</h3>
+                <p><b>Provider</b>가 관리 · <b>prefix 토큰</b> 매칭<br>입력 <b>50~90%↓</b> · 지연 최대 85%↓<br><span style="color:var(--ink-mute);">리스크: 매우 낮음</span></p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Exact Cache</h3>
+                <p><b>Gateway</b>(Redis) · <b>전체 해시</b> 일치<br>LLM 호출 0 · 지연 ~10ms · 비용 0<br><span style="color:var(--ink-mute);">리스크: 낮음 (키 설계)</span></p>
+            </div>
+            <div class="num-item accent reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>Semantic Cache</h3>
+                <p><b>Gateway</b>(VectorDB) · <b>의미 유사도</b><br>적중률 10~70% (도메인별) · +5~20ms<br><span style="color:var(--bg); opacity:0.85;">리스크: 높음 · 오적중 주의</span></p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.6rem, 1.5vh, 0.9rem);">
+            분류 축 2개: <b>(가) 관리 주체</b> (Provider vs Gateway) · <b>(나) 매칭 단위</b> (prefix / 해시 / 의미).
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 29 · Prompt Cache 개념 (신규) ===== -->
+<section class="slide" data-title="Prompt Cache 개념">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">27 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Prompt Cache · What It Is</div>
+        <h2 class="slide-title reveal">Prompt Cache <span class="hl">한눈에 보기</span></h2>
+        <p class="slide-subtitle reveal" data-i="2">같은 prefix면 HIT, 한 토큰만 달라도 MISS. prompt 설계가 곧 캐시 적중률.</p>
+        <div class="two-col reveal" data-i="3" style="margin-top: clamp(0.4rem, 1.0vh, 0.6rem); gap: clamp(0.4rem, 1vw, 0.8rem); align-items: center;">
+            <div style="display:flex; flex-direction:column; gap: 0.4em; align-items: center;">
+                <img src="images/prompt_caching_1.png" alt="Prompt cache token-level concept: original prompt vs cache hit / cache miss" style="max-height: 26vh; width: 100%; object-fit: contain; border: 2px solid var(--ink); background: var(--bg);">
+                <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.05em;">토큰 시퀀스 단위 매칭</div>
+                <img src="images/prompt_caching_2.png" alt="Prompt cache text-level example: Act vs Behave triggers cache miss" style="max-height: 26vh; width: 100%; object-fit: contain; border: 2px solid var(--ink); background: var(--bg);">
+                <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.05em;">자연어 프롬프트 예시 — `Act` → HIT, `Behave` → MISS</div>
+            </div>
+            <div class="col-card accent">
+                <h3>핵심 메시지</h3>
+                <ul>
+                    <li>같은 prefix → KV-state 재사용 → <b>prefill 단계 건너뜀</b></li>
+                    <li>한 글자라도 달라지면 처음부터 다시 prefill (뒤가 같아도 무효)</li>
+                    <li><b>prefix 일치 = 캐시 적중률의 전부</b>. prompt 설계가 곧 비용</li>
+                </ul>
+                <h3 style="margin-top: 0.5em;">설계 함의 한 줄</h3>
+                <ul>
+                    <li>"불변 prefix 먼저, 가변 suffix 뒤" (다음 두 슬라이드에서 원리·구현)</li>
+                </ul>
+            </div>
+        </div>
+        <div class="source reveal" data-i="4" style="margin-top: clamp(0.3rem, 0.8vh, 0.5rem);">Anthropic Docs · Prompt caching</div>
+    </div>
+</section>
+
+
+<!-- ===== 30 · Prompt Cache 원리 (신규) ===== -->
+<section class="slide" data-title="Prompt Cache 원리">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">28 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Prompt Cache · How It Works</div>
+        <h2 class="slide-title reveal">Prompt Cache는 <span class="hl">왜·어떻게</span> 작동하는가</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.3vh, 0.8rem);">
+            <div class="col-card">
+                <h3>A. Prefill vs Decode <span class="sub">비용 구조</span></h3>
+                <ul>
+                    <li><b>Prefill</b> — 입력 N 토큰 병렬 처리, <b>O(N²)</b>, 전체 지연의 <b>60~80%</b></li>
+                    <li><b>Decode</b> — 출력 토큰 1개씩 순차 생성, 가벼운 루프</li>
+                    <li>Prompt Cache가 노리는 건 <b>Prefill 단계</b> — 여길 건너뛰면 비용·TTFT 동시 감소</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>B. Causal Attention <span class="sub">왜 prefix만?</span></h3>
+                <ul>
+                    <li>Token[n]의 KV-state = <b>f(Token[0..n])</b></li>
+                    <li>앞 토큰 하나만 바뀌어도 뒤 KV 전부 무효</li>
+                </ul>
+            </div>
+        </div>
+        <div class="two-col reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.3vh, 0.8rem);">
+            <div class="col-card">
+                <h3>C. Block-level Hashing <span class="sub">어떻게 매칭?</span></h3>
+                <ul>
+                    <li>토큰이 아니라 <b>블록(1,024~4,096 tokens)</b> 단위로 해시 비교</li>
+                    <li>최장 일치 prefix 만큼만 KV 재사용, 뒤 블록부터 새로 prefill</li>
+                    <li>최소 임계치(~1,024 토큰) 미만 프롬프트는 <b>캐시 대상 제외</b></li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>D. TTL과 GPU 메모리 <span class="sub">왜 짧나?</span></h3>
+                <ul>
+                    <li>KV-state는 <b>GPU 메모리 상주</b> — 공간 유한</li>
+                    <li>LRU/TTL evict 필수 → OpenAI 자동 5~10분, Anthropic 5분/1시간</li>
+                    <li>Persistent TTL은 본질적으로 <b>GPU 자원 예약 비용</b></li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">
+            설계 시사점 3가지: <b>①</b> 맨 앞에 dynamic value 금지 · <b>②</b> Few-shot·tool 정의 순서 고정 · <b>③</b> 짧은 프롬프트엔 Prompt Cache 대신 Exact Cache.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 31 · Prompt Cache (Provider) ===== -->
+<section class="slide" data-title="Prompt Cache Provider">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">29 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">① Prompt Cache · Provider-Managed</div>
+        <h2 class="slide-title reveal">Prompt Cache <span class="hl">프로바이더 비교</span> <span style="font-size:0.55em; color:var(--ink-mute); font-weight:400;">(2026-04 기준)</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.4rem, 1vh, 0.7rem); font-size: clamp(0.65rem, 1.0vw, 0.85rem);">
+            <thead><tr><th>Provider</th><th>활성화</th><th>최소 prefix</th><th>가격 · TTL 핵심 (2026-04)</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><b>OpenAI</b></td>
+                    <td>자동 (opt-out 불필요)</td>
+                    <td>1,024 tokens</td>
+                    <td class="hl">캐시 입력 ×0.5 (-50%) · 자동 TTL 5~10분</td>
+                </tr>
+                <tr>
+                    <td><b>Anthropic</b></td>
+                    <td>명시적 <code style="font-family:var(--font-mono);">cache_control:&nbsp;{type:"ephemeral",&nbsp;ttl?:"1h"}</code><br><span style="color:var(--ink-mute);">최대 4 breakpoint / 요청</span></td>
+                    <td>Opus 4.7/4.6/4.5: <b>4,096</b><br>Sonnet 4.6: <b>2,048</b><br>Haiku 4.5: <b>4,096</b></td>
+                    <td class="hl">읽기 ×0.1 (<b>-90%</b>) · 쓰기 ×1.25 (5분) / ×2.0 (1시간 GA)<br><span style="color:var(--ink-mute);">워크스페이스 격리 (’26-02-05~) · 룩백 20 블록</span></td>
+                </tr>
+                <tr>
+                    <td><b>Google (Gemini)</b></td>
+                    <td>명시적 <code style="font-family:var(--font-mono);">CachedContent</code> API</td>
+                    <td>4,096 tokens (Pro/Flash)</td>
+                    <td>캐시 입력 -75% · TTL 임의 지정</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">
+            <span class="tag">설계 팁</span>
+            <b>[System Prompt] [Few-shot] [Tools]</b> → 불변 (캐시 대상) · <b>[사용자 질의] [Timestamp]</b> → 가변 (캐시 제외).<br>
+            흔한 실수: 시스템 프롬프트 맨 앞의 request-id·timestamp → 청구서 즉시 반토막.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 32 · Exact Cache 개념 (신규) ===== -->
+<section class="slide" data-title="Exact Cache 개념">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">30 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">② Exact Cache · What It Is</div>
+        <h2 class="slide-title reveal">Exact Cache는 <span class="hl">무엇인가</span></h2>
+        <p class="slide-subtitle reveal" data-i="2">전체 프롬프트 + 파라미터 + 모델의 <b>해시</b>로 매칭. 한 글자만 달라도 다른 키.</p>
+        <div class="diagram-box reveal" data-i="3" style="margin-top: clamp(0.4rem, 1vh, 0.7rem);">
+            <svg viewBox="0 0 1100 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Exact cache hit/miss by hash equality">
+                <style>
+                    .b-bg { fill: #fff; stroke: #0a0a0a; stroke-width: 2; }
+                    .b-acc { fill: #ffe5de; stroke: #ff3300; stroke-width: 2; }
+                    .b-hit { fill: #e6f7ec; stroke: #2a8a4a; stroke-width: 2; }
+                    .b-miss { fill: #fff0eb; stroke: #ff3300; stroke-width: 2; }
+                    .t-label { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+                    .t-prompt { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 13px; fill: #111; }
+                    .t-hash { font-family: 'JetBrains Mono', monospace; font-size: 12px; fill: #555; }
+                    .t-result-hit { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px; fill: #2a8a4a; }
+                    .t-result-miss { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px; fill: #ff3300; }
+                    .t-note { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 11px; fill: #777; font-style: italic; }
+                    .arr { fill: none; stroke: #0a0a0a; stroke-width: 1.5; }
+                </style>
+                <defs>
+                    <marker id="ec-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                        <path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/>
+                    </marker>
+                </defs>
+
+                <!-- stored entry -->
+                <rect class="b-acc" x="20" y="22" width="370" height="62" />
+                <text class="t-label" x="35" y="44" fill="#ff3300">Stored</text>
+                <text class="t-prompt" x="35" y="64">"비밀번호 어떻게 바꾸나요?"</text>
+                <text class="t-hash" x="35" y="78">hash = a1b2c3…</text>
+
+                <!-- header row -->
+                <text class="t-label" x="20" y="118" fill="#0a0a0a">들어오는 쿼리</text>
+                <text class="t-label" x="640" y="118" fill="#0a0a0a">hash</text>
+                <text class="t-label" x="850" y="118" fill="#0a0a0a">결과</text>
+
+                <!-- row 1: HIT -->
+                <rect class="b-hit" x="20" y="130" width="600" height="38" />
+                <text class="t-prompt" x="35" y="154">"비밀번호 어떻게 바꾸나요?"</text>
+                <text class="t-hash" x="640" y="154">a1b2c3</text>
+                <text class="t-result-hit" x="850" y="154">✓ Cache HIT</text>
+
+                <!-- row 2: MISS - 공백 -->
+                <rect class="b-miss" x="20" y="174" width="600" height="38" />
+                <text class="t-prompt" x="35" y="198">"비밀번호  어떻게 바꾸나요?"</text>
+                <text class="t-note" x="350" y="198">(공백 1개 추가)</text>
+                <text class="t-hash" x="640" y="198">7f9d22</text>
+                <text class="t-result-miss" x="850" y="198">✗ Cache MISS</text>
+
+                <!-- row 3: MISS - 단어 -->
+                <rect class="b-miss" x="20" y="218" width="600" height="38" />
+                <text class="t-prompt" x="35" y="242">"비밀번호 어떻게 변경하나요?"</text>
+                <text class="t-note" x="370" y="242">(단어 차이)</text>
+                <text class="t-hash" x="640" y="242">4e2c8a</text>
+                <text class="t-result-miss" x="850" y="242">✗ Cache MISS</text>
+
+                <!-- row 4: MISS - 영어 -->
+                <rect class="b-miss" x="20" y="262" width="600" height="38" />
+                <text class="t-prompt" x="35" y="286">"How to change my password?"</text>
+                <text class="t-note" x="370" y="286">(의미는 같음, 글자 다름)</text>
+                <text class="t-hash" x="640" y="286">b88e1f</text>
+                <text class="t-result-miss" x="850" y="286">✗ Cache MISS</text>
+
+                <!-- bottom note -->
+                <text class="t-note" x="20" y="328" fill="#0a0a0a" font-style="normal" font-weight="600" font-size="12">매칭 단위 = "전체 프롬프트 + 파라미터 + 모델"의 해시. 정규화(공백·줄바꿈) + 모델 버전 키 포함은 필수.</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 33 · Exact Cache (Gateway) ===== -->
+<section class="slide" data-title="Exact Cache">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">31 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">② Exact Cache · Gateway-Managed</div>
+        <h2 class="slide-title reveal">Exact Cache <span class="hl">키 설계</span> & 흐름</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.3vh, 0.8rem);">
+            <div class="codeblock" style="max-height: 60vh; overflow: visible; font-size: clamp(0.62rem, 0.95vw, 0.8rem); line-height: 1.45;">
+<span class="cm"># 키 설계 · 4요소 필수</span>
+key = hash(
+    <span class="kw">model_id</span> + <span class="kw">model_version</span>,  <span class="cm"># stale 방지</span>
+    <span class="kw">normalized_prompt</span>,          <span class="cm"># 공백·줄바꿈 정규화</span>
+    <span class="kw">temperature</span> + <span class="kw">top_p</span> + <span class="kw">seed</span>,<span class="cm"># 비결정성 파라미터</span>
+    <span class="kw">tools_hash</span> + <span class="kw">max_tokens</span>    <span class="cm"># 응답 영향 요소</span>
+)
+<span class="cm"># 예: claude-opus-4-7-20260416-abc123…</span>
+
+<span class="cm"># 호출 흐름</span>
+<span class="kw">if</span> cached := redis.get(key):
+    <span class="kw">return</span> cached   <span class="cm"># ~10ms, LLM 0</span>
+resp = llm.call(...)
+redis.set(key, resp, ttl=<span class="kw">TTL</span>)
+<span class="kw">return</span> resp
+            </div>
+            <div class="col-card accent">
+                <h3>TTL 가이드</h3>
+                <ul>
+                    <li>정적 (공지·FAQ): <b>24h~7d</b></li>
+                    <li>동적 (사용자 컨텍스트): <b>1h~6h</b></li>
+                    <li>실험·디버깅: <b>5~15분</b></li>
+                    <li>기본값: <b>1h</b></li>
+                </ul>
+                <h3 style="margin-top: 0.6em;">적합 시나리오</h3>
+                <ul>
+                    <li>FAQ · 배너 텍스트 · 공지 요약</li>
+                    <li>반복 번역 · 테스트 환경</li>
+                    <li>핫패스 트래픽 <b>30~50%↓</b></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 34 · Semantic Cache 개념 (신규) ===== -->
+<section class="slide" data-title="Semantic Cache 개념">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">32 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">③ Semantic Cache · What It Is</div>
+        <h2 class="slide-title reveal">Semantic Cache는 <span class="hl">무엇인가</span></h2>
+        <p class="slide-subtitle reveal" data-i="2">임베딩 cosine 유사도 ≥ threshold면 HIT. 글자가 달라도 의미만 같으면 적중.</p>
+        <div class="diagram-box reveal" data-i="3" style="margin-top: clamp(0.4rem, 1vh, 0.7rem);">
+            <svg viewBox="0 0 1100 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Semantic cache hit/miss by cosine similarity">
+                <style>
+                    .b-bg { fill: #fff; stroke: #0a0a0a; stroke-width: 2; }
+                    .b-acc { fill: #ffe5de; stroke: #ff3300; stroke-width: 2; }
+                    .b-hit { fill: #e6f7ec; stroke: #2a8a4a; stroke-width: 2; }
+                    .b-miss { fill: #fff0eb; stroke: #ff3300; stroke-width: 2; }
+                    .b-mid { fill: #fff8e6; stroke: #c79100; stroke-width: 2; }
+                    .t-label { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+                    .t-prompt { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 13px; fill: #111; }
+                    .t-cos { font-family: 'JetBrains Mono', monospace; font-size: 13px; fill: #111; font-weight: 700; }
+                    .t-result-hit { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 12px; fill: #2a8a4a; }
+                    .t-result-miss { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 12px; fill: #ff3300; }
+                    .t-result-mid { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 12px; fill: #c79100; }
+                    .t-note { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 11px; fill: #777; font-style: italic; }
+                </style>
+
+                <!-- stored -->
+                <rect class="b-acc" x="20" y="20" width="540" height="62" />
+                <text class="t-label" x="35" y="42" fill="#ff3300">Stored</text>
+                <text class="t-prompt" x="35" y="62">"비밀번호 어떻게 바꾸나요?"</text>
+                <text class="t-note" x="35" y="76" font-style="normal" font-weight="500">→ embedding [0.12, -0.34, 0.55, …]</text>
+
+                <!-- threshold marker -->
+                <rect class="b-bg" x="600" y="20" width="480" height="62" />
+                <text class="t-label" x="615" y="42">Threshold (예시)</text>
+                <text class="t-cos" x="615" y="64" font-size="22">cosine ≥ 0.90</text>
+
+                <!-- header row -->
+                <text class="t-label" x="20" y="116">들어오는 쿼리</text>
+                <text class="t-label" x="700" y="116">cosine</text>
+                <text class="t-label" x="850" y="116">결과</text>
+
+                <!-- row 1: HIT 1.0 -->
+                <rect class="b-hit" x="20" y="128" width="660" height="36" />
+                <text class="t-prompt" x="35" y="151">"비밀번호 어떻게 바꾸나요?"</text>
+                <text class="t-cos" x="700" y="151">1.000</text>
+                <text class="t-result-hit" x="850" y="151">✓ HIT (동일)</text>
+
+                <!-- row 2: HIT 0.94 -->
+                <rect class="b-hit" x="20" y="170" width="660" height="36" />
+                <text class="t-prompt" x="35" y="193">"비번 변경법 알려줘"</text>
+                <text class="t-cos" x="700" y="193">0.94</text>
+                <text class="t-result-hit" x="850" y="193">✓ HIT (의미 같음)</text>
+
+                <!-- row 3: HIT 0.93 -->
+                <rect class="b-hit" x="20" y="212" width="660" height="36" />
+                <text class="t-prompt" x="35" y="235">"패스워드 바꾸는 방법"</text>
+                <text class="t-cos" x="700" y="235">0.93</text>
+                <text class="t-result-hit" x="850" y="235">✓ HIT (의미 같음)</text>
+
+                <!-- row 4: 0.88 mid -->
+                <rect class="b-mid" x="20" y="254" width="660" height="36" />
+                <text class="t-prompt" x="35" y="277">"How to change password?"</text>
+                <text class="t-cos" x="700" y="277">0.88</text>
+                <text class="t-result-mid" x="850" y="277">△ threshold 따라</text>
+
+                <!-- row 5: MISS 0.62 -->
+                <rect class="b-miss" x="20" y="296" width="660" height="36" />
+                <text class="t-prompt" x="35" y="319">"계정 어떻게 삭제하나요?"</text>
+                <text class="t-cos" x="700" y="319">0.62</text>
+                <text class="t-result-miss" x="850" y="319">✗ MISS</text>
+
+                <!-- bottom note -->
+                <text class="t-note" x="20" y="358" fill="#ff3300" font-style="normal" font-weight="700" font-size="12">⚠ 위험: "계약 해지" vs "계약 체결" — 단어 중복으로 cosine 높음, 의미 정반대 (false positive 사고).</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 35 · Semantic Cache (Gateway) ===== -->
+<section class="slide" data-title="Semantic Cache">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">33 / 37</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">③ Semantic Cache · Vector Similarity</div>
+        <h2 class="slide-title reveal">Semantic Cache <span class="hl">설계</span> & 리스크</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.3vh, 0.8rem);">
+            <div class="col-card">
+                <h3>파이프라인</h3>
+                <ul>
+                    <li>Query → Embedding → VectorDB Top-1 유사도</li>
+                    <li>threshold 이상 → <b>Cache 응답</b> (LLM 호출 0)</li>
+                    <li>miss → LLM 호출 + 새 벡터 저장</li>
+                    <li>임베딩·유사도 오버헤드 <b>5~20ms</b></li>
+                </ul>
+                <h3 style="margin-top: 0.5em;">도메인별 적중률</h3>
+                <ul>
+                    <li>FAQ·고객지원: <b>40~70%</b></li>
+                    <li>번역·요약: 25~45%</li>
+                    <li>문서 Q&A: 15~30%</li>
+                    <li>오픈 채팅·창작: 5~20%</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Threshold 튜닝 (cosine)</h3>
+                <ul>
+                    <li>0.95~1.00: 매우 엄격 · 적중 낮음</li>
+                    <li><b>0.90~0.95: 권장 시작점</b></li>
+                    <li>0.80~0.90: 느슨 · 오적중 주의</li>
+                    <li>&lt;0.80: 위험 · 엉뚱한 답</li>
+                </ul>
+                <h3 style="margin-top: 0.5em;">오적중 방지 3종</h3>
+                <ul>
+                    <li>① 안전 도메인부터 (결제·해지 제외)</li>
+                    <li>② 사용자 피드백으로 오적중 모니터</li>
+                    <li>③ 부정 키워드 필터 (해지·취소·삭제)</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem);">
+            <span class="tag">치명적 사고 예</span>
+            "<b>계약 해지</b>는 어떻게?" → "<b>계약 체결</b>은 어떻게?" 답이 나가면 신뢰도 붕괴. 도입 전 반드시 안전장치 세 개 같이 올릴 것.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 36 · 적용 순서 ===== -->
+<section class="slide" data-title="적용 순서">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CH6</span><span class="slide-num">34 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Rollout Order</div>
+        <h2 class="slide-title reveal">캐시 <span class="hl">적용 순서</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.4rem); align-items: center;">
+            <div class="col-card accent">
+                <h3>도입 순서</h3>
+                <ul>
+                    <li><b>① Prompt Cache</b> — prefix 재구조화 (공짜) · 입력 50~90%↓ · 리스크 없음</li>
+                    <li><b>② Exact Cache</b> — Redis 핫패스 · 트래픽 30~50%↓ · 키 설계만 주의</li>
+                    <li><b>③ Semantic Cache</b> — Vector + 오적중 모니터 · FAQ 40~70%↓ · 도메인 의존</li>
+                </ul>
+            </div>
+            <div style="display:flex; flex-direction:column; gap: 0.5em; align-items: center;">
+                <img src="images/llm_caching.gif" alt="Layered caching architecture: Exact Match → Semantic → Prompt → LLM" style="max-height: 62vh; width: 100%; object-fit: contain; background: var(--bg);">
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 32 · [CLOSING] 통합 & 마무리 ===== -->
+<section class="slide chapter-divider" data-title="Closing">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY</span><span class="slide-num">35 / 37</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Closing</div>
+        <h2 class="chapter-title reveal" data-i="2">통합 & <span class="hl">마무리</span></h2>
+        <div class="chapter-questions reveal" data-i="3">
+            <div class="chapter-q-label">이 마무리에서 하는 일</div>
+            <ul>
+                <li>6 챕터 + 횡단 책임(관측성·거버넌스)을 <b>한 장 아키텍처</b>로 통합</li>
+                <li>오늘의 <b>4 체크리스트</b>로 학습 결과 자가 점검</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 33 · 통합 참조 아키텍처 (7 책임 매핑) ===== -->
+<section class="slide" data-title="참조 아키텍처">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CLOSING</span><span class="slide-num">36 / 37</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Reference Architecture</div>
+        <h2 class="slide-title reveal">통합 <span class="hl">참조 아키텍처</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s2-gateway-reference-arch.drawio · rendered SVG -->
+            <svg viewBox="0 0 1160 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gateway reference architecture">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .b-m{fill:#f5f5f5;stroke:#0a0a0a;stroke-width:1}
+                    .gw{fill:none;stroke:#ff3300;stroke-width:3}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:12px;text-anchor:middle;text-transform:uppercase}
+                    .t-s{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:10px;text-anchor:middle;font-weight:500}
+                    .t-w{fill:#fff}
+                    .t-title{font-family:'Archivo',sans-serif;font-weight:900;fill:#ff3300;font-size:14px;text-transform:uppercase;letter-spacing:0.1em}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="rf1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <!-- Application -->
+                <rect class="b" x="500" y="30" width="220" height="50"/>
+                <text class="t" x="610" y="60">Application</text>
+                <line class="ar" x1="610" y1="80" x2="610" y2="110" marker-end="url(#rf1)"/>
+
+                <!-- Gateway box -->
+                <rect class="gw" x="80" y="110" width="1020" height="430"/>
+                <text class="t-title" x="100" y="135">LLM Gateway</text>
+
+                <!-- Top row: Auth → Router → Cache section -->
+                <rect class="b" x="110" y="160" width="160" height="50"/>
+                <text class="t" x="190" y="184">Auth</text>
+                <text class="t-s" x="190" y="200">Key Vault · Token</text>
+
+                <line class="ar" x1="270" y1="185" x2="300" y2="185" marker-end="url(#rf1)"/>
+
+                <rect class="b-a" x="300" y="160" width="240" height="50"/>
+                <text class="t" x="420" y="183">Router</text>
+                <text class="t-s" x="420" y="200">Cascade · Intent · Weighted · <tspan fill="#ff3300" font-weight="800">#01</tspan></text>
+
+                <line class="ar" x1="540" y1="185" x2="570" y2="185" marker-end="url(#rf1)"/>
+
+                <!-- Cache section (3종) -->
+                <text class="t" x="820" y="148" fill="#ff3300">#04 Cache (3종)</text>
+                <rect class="b" x="570" y="160" width="500" height="42"/>
+                <text class="t" x="820" y="183">Prompt Cache</text>
+                <text class="t-s" x="820" y="197">Provider 내장</text>
+
+                <rect class="b" x="570" y="210" width="500" height="42"/>
+                <text class="t" x="820" y="233">Exact Cache</text>
+                <text class="t-s" x="820" y="247">Redis KV</text>
+
+                <rect class="b-a" x="570" y="260" width="500" height="42"/>
+                <text class="t" x="820" y="283">Semantic Cache</text>
+                <text class="t-s" x="820" y="297">Vector Store</text>
+
+                <!-- Cache → bottom flow -->
+                <line class="ar" x1="820" y1="302" x2="820" y2="335" marker-end="url(#rf1)"/>
+
+                <!-- Cross-cutting horizontal layers -->
+                <rect class="b-m" x="110" y="335" width="960" height="38"/>
+                <text class="t" x="590" y="359">Fallback · Circuit Breaker · Rate Limit  —  <tspan fill="#ff3300" font-weight="800">#02</tspan></text>
+
+                <rect class="b-m" x="110" y="380" width="960" height="38"/>
+                <text class="t" x="590" y="404">Observability (OTel) · Cost Tagging  —  <tspan fill="#ff3300" font-weight="800">#05</tspan></text>
+
+                <rect class="b-m" x="110" y="425" width="960" height="38"/>
+                <text class="t" x="590" y="449">PII Mask · Injection Detect · 감사 로그  —  <tspan fill="#ff3300" font-weight="800">#06</tspan></text>
+
+                <!-- Out arrows: Gateway → Providers -->
+                <line class="ar" x1="380" y1="540" x2="380" y2="580" marker-end="url(#rf1)"/>
+                <line class="ar" x1="780" y1="540" x2="780" y2="580" marker-end="url(#rf1)"/>
+
+                <!-- Providers -->
+                <rect class="b" x="250" y="580" width="260" height="50"/>
+                <text class="t" x="380" y="600">OpenAI · GPT-5.5 / 5.4 / o4-mini</text>
+                <text class="t-s" x="380" y="618">Azure OpenAI multi-region</text>
+
+                <rect class="b" x="620" y="580" width="320" height="50"/>
+                <text class="t" x="780" y="600">Anthropic Opus 4.7 / Sonnet / Haiku</text>
+                <text class="t-s" x="780" y="618">Google Gemini 3.1 Pro · Flash Live · Lite</text>
+            </svg>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 34 · 체크리스트 & Q&A (7 책임 기준) ===== -->
+<section class="slide end-slide" data-title="체크리스트">
+    <header class="slide-header"><span class="section-marker">02 · GATEWAY · CLOSING</span><span class="slide-num">37 / 37</span></header>
+    <div class="slide-content" style="justify-content: center;">
+        <div class="label-strip reveal">Section 2 · Wrap-up (4 책임 기준)</div>
+        <h2 class="slide-title reveal">아키텍트 <span class="hl">체크리스트</span></h2>
+        <div class="resp-checklist reveal" data-i="2" style="margin-top: clamp(0.8rem, 2vh, 1.3rem);">
+            <div class="row">
+                <div class="resp-n">#01</div>
+                <div class="resp-name">라우팅 & LB <span class="ch">Ch3</span></div>
+                <div class="resp-item"><b>3 전략 + 2026-04 카탈로그 + Cascade 4단</b> 설계 가능</div>
+            </div>
+            <div class="row">
+                <div class="resp-n">#02</div>
+                <div class="resp-name">Fallback & 재시도 <span class="ch">Ch4</span></div>
+                <div class="resp-item">트리거·백오프·<b>Idempotency</b>·관측성 통합 설계</div>
+            </div>
+            <div class="row">
+                <div class="resp-n">#03</div>
+                <div class="resp-name">Prompt 관리 <span class="ch">Ch5</span></div>
+                <div class="resp-item"><b>Prompt = Code</b> 원칙 + 대표 툴(Langfuse 등) 차이 설명 가능</div>
+            </div>
+            <div class="row">
+                <div class="resp-n">#04</div>
+                <div class="resp-name">캐싱 3종 <span class="ch">Ch6</span></div>
+                <div class="resp-item">Prompt·Exact·Semantic의 차이 + 도입 순서 <b>Prompt→Exact→Semantic</b> + 비용 레버 5가지</div>
+            </div>
+        </div>
+        <div class="big-quote reveal" data-i="3" style="margin-top: clamp(0.8rem, 2.5vh, 1.4rem); max-width: none;">
+            <span class="hl">Questions ?</span>
+        </div>
+    </div>
+</section>
+
+
+<script>
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.current = 0;
+        this.navContainer = document.getElementById('navDots');
+        this.progressBar = document.getElementById('progressBar');
+        this._buildNavDots();
+        this._setupObserver();
+        this._setupKeyboard();
+        this._setupTouch();
+        this._setupWheel();
+        this._updateProgress();
+    }
+    _buildNavDots() {
+        this.navContainer.innerHTML = '';
+        this.slides.forEach((slide, i) => {
+            const btn = document.createElement('button');
+            btn.setAttribute('aria-label', `Slide ${i + 1}: ${slide.dataset.title || ''}`);
+            btn.addEventListener('click', () => this.goTo(i));
+            this.navContainer.appendChild(btn);
+        });
+        this._syncDots();
+    }
+    _setupObserver() {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((e) => {
+                if (e.isIntersecting && e.intersectionRatio > 0.55) {
+                    e.target.classList.add('visible');
+                    this.current = this.slides.indexOf(e.target);
+                    this._syncDots();
+                    this._updateProgress();
+                }
+            });
+        }, { threshold: [0, 0.25, 0.55, 0.9] });
+        this.slides.forEach((s) => io.observe(s));
+    }
+    _setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault(); this.goTo(this.current + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault(); this.goTo(this.current - 1);
+            } else if (e.key === 'Home') { this.goTo(0); }
+            else if (e.key === 'End')   { this.goTo(this.slides.length - 1); }
+        });
+    }
+    _setupTouch() {
+        let startY = 0, startX = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; startX = e.touches[0].clientX; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = startY - e.changedTouches[0].clientY;
+            const dx = startX - e.changedTouches[0].clientX;
+            if (Math.abs(dy) < 50 || Math.abs(dy) < Math.abs(dx)) return;
+            this.goTo(this.current + (dy > 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    _setupWheel() { window.addEventListener('scroll', () => this._updateProgress(), { passive: true }); }
+    _syncDots() { this.navContainer.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === this.current)); }
+    _updateProgress() { const pct = (this.current / Math.max(1, this.slides.length - 1)) * 100; this.progressBar.style.width = pct + '%'; }
+    goTo(i) { const idx = Math.max(0, Math.min(this.slides.length - 1, i)); this.slides[idx].scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+</script>
+</body>
+</html>

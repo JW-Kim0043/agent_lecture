@@ -1,0 +1,77 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="rag-ref-arch" name="Enterprise RAG Reference">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Source systems -->
+        <mxCell id="s1" value="SOURCE SYSTEMS&#10;Confluence · SharePoint · DB · S3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Ingestion -->
+        <mxCell id="s2" value="INGESTION WORKER&#10;parsing · OCR" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Chunker + Meta -->
+        <mxCell id="s3" value="CHUNKER + METADATA&#10;recursive · ACL tag" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Embedding -->
+        <mxCell id="s4" value="EMBEDDING SERVICE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="s3" target="s4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- VectorDB + BM25 -->
+        <mxCell id="db" value="VECTOR DB + BM25 INDEX" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF3300;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="450" y="300" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="s4" target="db"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- User / Query -->
+        <mxCell id="u1" value="USER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="60" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" value="QUERY REWRITER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="150" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" value="HYBRID RETRIEVER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="230" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" value="RERANKER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="310" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" value="PROMPT BUILD&#10;+ citation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="390" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="u6" value="LLM GATEWAY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="850" y="490" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ue1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="u1" target="u2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ue2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="u2" target="u3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ue3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="u3" target="u4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ue4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="u4" target="u5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ue5" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="u5" target="u6"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- VectorDB connects to Hybrid Retriever -->
+        <mxCell id="conn" style="endArrow=classic;html=1;strokeColor=#FF3300;strokeWidth=2;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="db" target="u3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Label -->
+        <mxCell id="lbl1" value="INDEX TIME" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Archivo;fontSize=12;fontStyle=1;fontColor=#FF3300;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl2" value="QUERY TIME" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Archivo;fontSize=12;fontStyle=1;fontColor=#FF3300;" vertex="1" parent="1">
+          <mxGeometry x="850" y="30" width="200" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

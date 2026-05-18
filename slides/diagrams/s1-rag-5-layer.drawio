@@ -1,0 +1,16 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="rag-5-layer" name="RAG 5-Layer">
+    <mxGraphModel dx="1000" dy="700" grid="1" gridSize="10" page="1" pageWidth="1000" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" /><mxCell id="1" parent="0" />
+
+        <mxCell id="L5" value="[5]  LLM INTEGRATION &amp; RESPONSE GENERATION" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=20;" vertex="1" parent="1"><mxGeometry x="80" y="80" width="800" height="60" as="geometry" /></mxCell>
+        <mxCell id="L4" value="[4]  RETRIEVAL PIPELINE    ·  Hybrid + Reranker" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=20;" vertex="1" parent="1"><mxGeometry x="80" y="150" width="800" height="60" as="geometry" /></mxCell>
+        <mxCell id="L3" value="[3]  EMBEDDING MODEL    ·  언어 · 길이 · 비용" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=20;" vertex="1" parent="1"><mxGeometry x="80" y="220" width="800" height="60" as="geometry" /></mxCell>
+        <mxCell id="L2" value="[2]  CHUNKING &amp; INDEXING    ·  fixed · recursive · semantic" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=20;" vertex="1" parent="1"><mxGeometry x="80" y="290" width="800" height="60" as="geometry" /></mxCell>
+        <mxCell id="L1" value="[1]  DATA INGESTION    ·  parsing · OCR · metadata" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;align=left;spacingLeft=20;" vertex="1" parent="1"><mxGeometry x="80" y="360" width="800" height="60" as="geometry" /></mxCell>
+        <mxCell id="L0" value="[0]  GOVERNANCE  ·  OBSERVABILITY  ·  EVALUATION    (cross-cutting)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#0A0A0A;strokeWidth=1;fontFamily=Archivo;fontSize=12;fontStyle=2;align=left;spacingLeft=20;" vertex="1" parent="1"><mxGeometry x="80" y="450" width="800" height="50" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

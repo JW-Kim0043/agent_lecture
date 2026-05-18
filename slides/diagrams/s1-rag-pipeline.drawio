@@ -1,0 +1,66 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="rag-pipeline" name="RAG Pipeline">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="t1" value="INDEX TIME" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FF3300;align=left;" vertex="1" parent="1">
+          <mxGeometry x="60" y="40" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t2" value="QUERY TIME" style="text;html=1;strokeColor=none;fillColor=none;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FF3300;align=left;" vertex="1" parent="1">
+          <mxGeometry x="60" y="360" width="200" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Index time flow -->
+        <mxCell id="n1" value="DOCS" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="PARSING" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="230" y="80" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="CHUNKING" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="EMBEDDING" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="570" y="80" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="VECTOR DB&#10;+ BM25 INDEX" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF3300;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="770" y="200" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Index arrows -->
+        <mxCell id="e1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="n1" target="n2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="n2" target="n3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="n3" target="n4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" edge="1" parent="1" source="n4" target="n5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Query time flow -->
+        <mxCell id="q1" value="USER QUERY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="q2" value="REWRITE /&#10;EMBEDDING" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="400" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="q3" value="HYBRID SEARCH&#10;(Dense + BM25)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="400" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="q4" value="RERANK&#10;top 5~10" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="650" y="400" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="q5" value="LLM" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="830" y="400" width="100" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="qe1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="q1" target="q2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="qe2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="q2" target="q3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="qe3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="q3" target="q4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="qe4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;endSize=8;" edge="1" parent="1" source="q4" target="q5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- VectorDB → Hybrid Search connection -->
+        <mxCell id="link" style="endArrow=classic;html=1;strokeColor=#FF3300;strokeWidth=2;endSize=8;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="n5" target="q3"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

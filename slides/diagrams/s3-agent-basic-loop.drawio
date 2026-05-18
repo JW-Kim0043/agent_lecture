@@ -1,0 +1,42 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="agent-loop" name="Agent Basic Loop">
+    <mxGraphModel dx="1000" dy="700" grid="1" gridSize="10" page="1" pageWidth="1000" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Agent node -->
+        <mxCell id="agent" value="AGENT&#10;&#10;LLM.bind_tools(...)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF3300;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Decision (diamond) -->
+        <mxCell id="dec" value="tool_calls ?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="410" y="220" width="180" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Tools node -->
+        <mxCell id="tools" value="TOOLS&#10;&#10;ToolNode" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="380" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- END node -->
+        <mxCell id="end" value="END" style="ellipse;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="660" y="390" width="120" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows -->
+        <mxCell id="a1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="agent" target="dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a2" value="yes" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" edge="1" parent="1" source="dec" target="tools"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a3" value="no" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" edge="1" parent="1" source="dec" target="end"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Loop back arrow (tools → agent) -->
+        <mxCell id="a4" value="result" style="endArrow=classic;html=1;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;fontColor=#FF3300;exitX=0.5;exitY=0;entryX=0;entryY=0.5;curved=1;" edge="1" parent="1" source="tools" target="agent">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="80" y="120"/></Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,26 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="cascade" name="Gateway Cascade">
+    <mxGraphModel dx="1000" dy="800" grid="1" gridSize="10" page="1" pageWidth="1000" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" /><mxCell id="1" parent="0" />
+
+        <mxCell id="q" value="QUERY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="400" y="40" width="140" height="50" as="geometry" /></mxCell>
+        <mxCell id="m1" value="[1]  gpt-4o-mini" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="380" y="140" width="180" height="60" as="geometry" /></mxCell>
+        <mxCell id="r1" value="RESPONSE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="680" y="145" width="160" height="50" as="geometry" /></mxCell>
+
+        <mxCell id="m2" value="[2]  GPT-4.1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE5DE;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="380" y="280" width="180" height="60" as="geometry" /></mxCell>
+        <mxCell id="r2" value="RESPONSE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="680" y="285" width="160" height="50" as="geometry" /></mxCell>
+
+        <mxCell id="m3" value="[3]  o3" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF3300;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=13;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="380" y="420" width="180" height="60" as="geometry" /></mxCell>
+        <mxCell id="r3" value="RESPONSE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#0A0A0A;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1"><mxGeometry x="680" y="425" width="160" height="50" as="geometry" /></mxCell>
+
+        <mxCell id="e0" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="q" target="m1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e1" value="confident" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=11;" edge="1" parent="1" source="m1" target="r1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e1b" value="not confident" style="endArrow=classic;html=1;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontColor=#FF3300;" edge="1" parent="1" source="m1" target="m2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="confident" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=11;" edge="1" parent="1" source="m2" target="r2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2b" value="reasoning-heavy" style="endArrow=classic;html=1;strokeColor=#FF3300;strokeWidth=2;fontFamily=Archivo;fontSize=11;fontColor=#FF3300;" edge="1" parent="1" source="m2" target="m3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="m3" target="r3"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

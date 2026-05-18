@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Section 3 · AI Agent 아키텍처 기초</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Nunito:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   SWISS MODERN · Section 3 (Agent)
+   =========================================== */
+:root {
+    --bg: #ffffff;
+    --bg-grid: #f5f5f5;
+    --ink: #0a0a0a;
+    --ink-soft: #3a3a3a;
+    --ink-mute: #8a8a8a;
+    --rule: #e5e5e5;
+    --accent: #ff3300;
+    --accent-soft: #ffe5de;
+
+    --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body:    'Nunito', 'Archivo', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+    --title-size:  clamp(2rem, 5.5vw, 4.25rem);
+    --h2-size:     clamp(1.35rem, 3.3vw, 2.35rem);
+    --h3-size:     clamp(0.95rem, 1.95vw, 1.35rem);
+    --body-size:   clamp(0.78rem, 1.35vw, 1.05rem);
+    --small-size:  clamp(0.65rem, 1vw, 0.8rem);
+    --mono-size:   clamp(0.7rem, 1.1vw, 0.95rem);
+
+    --slide-padding: clamp(1.25rem, 4vw, 3.5rem);
+    --content-gap:   clamp(0.6rem, 1.8vw, 1.6rem);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration: 0.55s;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: var(--font-body); font-weight: 400;
+    background: var(--bg); color: var(--ink); line-height: 1.55;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; scroll-snap-align: start;
+    display: flex; flex-direction: column; position: relative;
+    background: var(--bg);
+}
+.slide::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: clamp(40px, 6vw, 80px) clamp(40px, 6vw, 80px);
+    pointer-events: none; opacity: 0.85;
+}
+.slide-content {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    max-height: 100%; overflow: hidden;
+    padding: var(--slide-padding);
+    padding-top: clamp(3.2rem, 7.5vh, 5rem);
+    padding-bottom: clamp(2rem, 5vh, 3.5rem);
+    position: relative; z-index: 2;
+}
+img, svg { max-width: 100%; max-height: min(55vh, 420px); }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(0.9rem, 3vw, 2rem); --title-size: clamp(1.4rem, 4.5vw, 2.8rem); --h2-size: clamp(1.1rem, 3vw, 1.8rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.6rem, 2.5vw, 1.5rem); --title-size: clamp(1.15rem, 4vw, 2.2rem); --body-size: clamp(0.7rem, 1.2vw, 0.95rem); }
+    .nav-dots { display: none; } .slide::before { opacity: 0.5; }
+}
+@media (max-width: 600px) {
+    :root { --title-size: clamp(1.4rem, 7vw, 2.4rem); }
+    .two-col, .num-grid { grid-template-columns: 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.15s !important; }
+    html { scroll-behavior: auto; }
+}
+
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--accent); z-index: 100; transition: width 0.25s ease-out; }
+.nav-dots { position: fixed; right: clamp(0.6rem, 1.5vw, 1.25rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 50; }
+.nav-dots button { width: 10px; height: 10px; border-radius: 0; border: 1.5px solid var(--ink); background: var(--bg); padding: 0; cursor: pointer; transition: all 0.2s ease; }
+.nav-dots button.active { background: var(--accent); border-color: var(--accent); }
+
+.slide-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: clamp(1rem, 2.8vh, 1.8rem) var(--slide-padding);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: var(--small-size); color: var(--ink-mute);
+    font-family: var(--font-mono); letter-spacing: 0.1em; z-index: 10; text-transform: uppercase;
+}
+.section-marker { color: var(--accent); font-weight: 500; }
+.section-marker::before { content: ''; display: inline-block; width: 10px; height: 10px; background: var(--accent); margin-right: 0.6em; vertical-align: -1px; }
+.slide-num { font-variant-numeric: tabular-nums; }
+
+/* title slide */
+.title-slide { justify-content: flex-end; padding: 0; }
+.title-slide::before { opacity: 1; }
+.title-slide .hero { position: relative; z-index: 3; padding: var(--slide-padding); padding-right: clamp(2rem, 10vw, 8rem); padding-bottom: clamp(2rem, 6vh, 4rem); max-width: 92vw; }
+.title-slide::after { content: ''; position: absolute; top: 0; left: 0; width: clamp(80px, 18vw, 260px); height: clamp(8px, 1.2vw, 16px); background: var(--accent); z-index: 2; }
+.title-num { position: absolute; top: clamp(2.5rem, 8vh, 5rem); right: clamp(1.5rem, 5vw, 4rem); font-family: var(--font-display); font-weight: 900; font-size: clamp(6rem, 24vw, 20rem); line-height: 0.8; color: var(--bg); -webkit-text-stroke: 2px var(--ink); letter-spacing: -0.08em; z-index: 1; opacity: 0.85; user-select: none; }
+.section-badge { display: inline-block; font-family: var(--font-mono); font-size: clamp(0.75rem, 1.3vw, 1rem); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); padding: 0.3em 0 0.3em 1em; border-left: 4px solid var(--accent); margin-bottom: clamp(1rem, 2.5vh, 1.75rem); }
+.hero h1 { font-family: var(--font-display); font-weight: 900; font-size: var(--title-size); line-height: 0.95; letter-spacing: -0.04em; color: var(--ink); margin-bottom: clamp(0.75rem, 2vh, 1.25rem); text-transform: uppercase; }
+.hero h1 .accent { color: var(--accent); }
+.tagline { font-family: var(--font-display); font-weight: 500; font-size: clamp(1rem, 2.2vw, 1.5rem); color: var(--ink-soft); letter-spacing: -0.01em; margin-bottom: clamp(1.25rem, 3vh, 2rem); max-width: 44ch; }
+.meta { font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.12em; text-transform: uppercase; }
+.meta span + span::before { content: '  /  '; color: var(--rule); }
+
+h2.slide-title { font-family: var(--font-display); font-weight: 900; font-size: var(--h2-size); letter-spacing: -0.03em; line-height: 1.05; color: var(--ink); text-transform: uppercase; margin-bottom: clamp(0.5rem, 1.5vh, 1rem); }
+h2.slide-title .hl { color: var(--accent); }
+h2.slide-title::after { content: ''; display: block; width: clamp(40px, 5vw, 60px); height: 4px; background: var(--accent); margin-top: clamp(0.5rem, 1.5vh, 1rem); }
+.slide-subtitle { font-size: var(--body-size); color: var(--ink-soft); margin-bottom: clamp(0.75rem, 2vh, 1.5rem); max-width: 60ch; font-weight: 500; }
+.big-quote { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.2rem, 3vw, 2.2rem); line-height: 1.15; letter-spacing: -0.025em; color: var(--ink); max-width: 34ch; text-transform: uppercase; }
+.big-quote .hl { color: var(--accent); }
+.big-quote.small { font-size: clamp(1rem, 2.2vw, 1.5rem); }
+
+.label-strip { font-family: var(--font-mono); font-size: var(--small-size); color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.8em; font-weight: 700; }
+.label-strip::before { content: '—'; margin-right: 0.6em; color: var(--accent); font-family: var(--font-display); }
+
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--duration) var(--ease-out), transform var(--duration) var(--ease-out); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0.05s; }
+.reveal:nth-child(2) { transition-delay: 0.15s; }
+.reveal:nth-child(3) { transition-delay: 0.25s; }
+.reveal:nth-child(4) { transition-delay: 0.35s; }
+.reveal:nth-child(5) { transition-delay: 0.45s; }
+.reveal:nth-child(6) { transition-delay: 0.55s; }
+.reveal:nth-child(7) { transition-delay: 0.65s; }
+.slide.visible [data-i="1"] { transition-delay: 0.10s; }
+.slide.visible [data-i="2"] { transition-delay: 0.18s; }
+.slide.visible [data-i="3"] { transition-delay: 0.26s; }
+.slide.visible [data-i="4"] { transition-delay: 0.34s; }
+.slide.visible [data-i="5"] { transition-delay: 0.42s; }
+.slide.visible [data-i="6"] { transition-delay: 0.50s; }
+.slide.visible [data-i="7"] { transition-delay: 0.58s; }
+
+.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.5rem, 1.4vh, 1rem); max-width: 66ch; }
+.bullet-list li { font-size: var(--body-size); line-height: 1.5; padding-left: 3em; position: relative; color: var(--ink); font-weight: 500; }
+.bullet-list li::before { content: attr(data-n); position: absolute; left: 0; top: 0; color: var(--accent); font-family: var(--font-display); font-weight: 800; font-size: 0.95em; letter-spacing: 0.05em; }
+.bullet-list li.check::before { content: ''; width: 12px; height: 12px; background: var(--accent); top: 0.45em; left: 0.2em; }
+.bullet-list li b { color: var(--ink); font-weight: 700; }
+.bullet-list li .muted { color: var(--ink-mute); font-weight: 400; }
+
+.num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); }
+.num-item { border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: clamp(1rem, 2.2vw, 1.6rem); background: var(--bg); position: relative; min-height: 130px; display: flex; flex-direction: column; gap: 0.4em; }
+.num-item .n { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.8rem, 3.5vw, 2.8rem); color: var(--accent); line-height: 0.9; letter-spacing: -0.03em; }
+.num-item h3 { font-family: var(--font-display); font-weight: 800; font-size: var(--h3-size); text-transform: uppercase; letter-spacing: -0.01em; color: var(--ink); }
+.num-item p { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.4; font-weight: 500; }
+.num-item.accent { background: var(--accent); }
+.num-item.accent .n { color: var(--bg); }
+.num-item.accent h3 { color: var(--bg); }
+.num-item.accent p { color: var(--bg); opacity: 0.9; }
+
+.slide-table { width: 100%; border-collapse: collapse; font-size: var(--body-size); background: var(--bg); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+.slide-table th, .slide-table td { padding: clamp(0.6rem, 1.4vh, 1rem) clamp(0.7rem, 1.3vw, 1.2rem); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; font-weight: 500; }
+.slide-table th { background: var(--ink); color: var(--bg); font-weight: 700; font-family: var(--font-display); font-size: var(--small-size); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: none; }
+.slide-table th.hl { background: var(--accent); }
+.slide-table tr:last-child td { border-bottom: none; }
+.slide-table td b { color: var(--ink); font-weight: 800; }
+.slide-table td.hl { color: var(--accent); font-weight: 700; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(0.6rem, 1.5vw, 1.2rem); width: 100%; }
+.col-card { background: var(--bg); border: 2px solid var(--ink); padding: clamp(1rem, 2.3vw, 1.6rem); display: flex; flex-direction: column; gap: 0.5em; }
+.col-card.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.col-card.accent h3 { color: var(--bg); }
+.col-card.accent ul li { color: var(--bg); }
+.col-card.accent ul li::before { background: var(--bg); }
+.col-card h3 { font-family: var(--font-display); font-weight: 800; font-size: var(--h3-size); text-transform: uppercase; letter-spacing: -0.01em; margin-bottom: 0.3em; }
+.col-card h3 .sub { color: var(--ink-mute); font-weight: 400; font-size: 0.7em; margin-left: 0.5em; text-transform: none; }
+.col-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.4em; }
+.col-card ul li { font-size: var(--body-size); color: var(--ink-soft); padding-left: 1.2em; position: relative; line-height: 1.45; font-weight: 500; }
+.col-card ul li::before { content: ''; position: absolute; left: 0; top: 0.55em; width: 8px; height: 2px; background: var(--ink); }
+.col-card ul li b { color: var(--ink); font-weight: 800; }
+
+.callout { background: var(--bg); border-left: 4px solid var(--accent); padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1rem, 2.5vw, 1.5rem); font-size: var(--body-size); line-height: 1.5; color: var(--ink-soft); max-width: 72ch; font-weight: 500; }
+.callout.ink { border-left-color: var(--ink); }
+.callout b { color: var(--ink); font-weight: 800; }
+.callout .tag { display: inline-block; font-family: var(--font-mono); font-size: 0.78em; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.5em; text-transform: uppercase; font-weight: 700; }
+.callout.ink .tag { color: var(--ink); }
+
+.chip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 0.6rem 0.8rem; }
+.chip { display: flex; gap: 0.8em; align-items: flex-start; font-size: var(--body-size); line-height: 1.4; color: var(--ink); font-weight: 500; padding: 0.7em 0.9em; background: var(--bg); border: 2px solid var(--ink); }
+.chip::before { content: ''; display: inline-block; width: 14px; height: 14px; flex-shrink: 0; border: 2px solid var(--ink); background: var(--bg); margin-top: 0.15em; }
+
+.source { margin-top: clamp(0.6rem, 1.5vh, 1rem); font-size: var(--small-size); color: var(--ink-mute); font-family: var(--font-mono); letter-spacing: 0.05em; }
+.source::before { content: '→  '; color: var(--accent); }
+
+.diagram-box { display: flex; justify-content: center; align-items: center; width: 100%; max-height: 62vh; margin: clamp(0.5rem, 1.5vh, 1rem) 0; }
+.diagram-box svg { max-width: 100%; max-height: 60vh; width: auto; height: auto; }
+
+/* code block — for Python state definition */
+.codeblock {
+    font-family: var(--font-mono); font-size: var(--mono-size);
+    line-height: 1.6; color: var(--ink);
+    background: var(--bg); border: 2px solid var(--ink);
+    padding: clamp(0.9rem, 2vw, 1.3rem) clamp(1rem, 2.5vw, 1.6rem);
+    white-space: pre; overflow-x: auto; max-height: 50vh;
+}
+.codeblock .kw { color: var(--accent); font-weight: 500; }
+.codeblock .ty { color: var(--ink); font-weight: 700; }
+.codeblock .cm { color: var(--ink-mute); font-style: italic; }
+
+/* Formula (Agent = Loop + Tools + State + Policy) */
+.formula { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: clamp(0.5rem, 1.5vw, 1rem); font-family: var(--font-display); font-weight: 900; font-size: clamp(1.3rem, 3.5vw, 2.6rem); letter-spacing: -0.025em; text-transform: uppercase; margin: clamp(1rem, 3vh, 2rem) 0; }
+.formula .op { color: var(--ink-mute); font-weight: 500; }
+.formula .term { background: var(--bg); border: 3px solid var(--accent); padding: 0.3em 0.7em; color: var(--accent); }
+.formula .term.ink { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.formula .eq { color: var(--ink); }
+
+.mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); margin-top: clamp(0.8rem, 2vh, 1.3rem); max-width: 900px; }
+.mini-item { border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: clamp(0.9rem, 2vw, 1.3rem); background: var(--bg); text-align: center; }
+.mini-item .k { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.1rem, 2.2vw, 1.5rem); color: var(--accent); text-transform: uppercase; letter-spacing: -0.01em; }
+.mini-item .d { font-size: var(--small-size); color: var(--ink-soft); margin-top: 0.4em; font-weight: 500; }
+
+.stat-row { display: flex; gap: clamp(1.5rem, 5vw, 4rem); flex-wrap: wrap; justify-content: flex-start; align-items: flex-end; }
+.stat { text-align: left; }
+.stat .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.5rem, 7vw, 5.5rem); line-height: 0.9; color: var(--accent); letter-spacing: -0.05em; }
+.stat .num.ink { color: var(--ink); }
+.stat .label { font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-soft); margin-top: 0.6em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+
+.end-slide { justify-content: center; align-items: center; position: relative; }
+.end-slide::after { content: ''; position: absolute; bottom: 0; right: 0; width: clamp(80px, 18vw, 260px); height: clamp(8px, 1.2vw, 16px); background: var(--accent); z-index: 2; }
+
+/* chapter divider */
+.chapter-divider .slide-content { justify-content: center; align-items: flex-start; }
+.chapter-divider::before { opacity: 0.5; }
+.chapter-divider::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: clamp(60px, 14vw, 200px); height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent); z-index: 2;
+}
+.chapter-marker {
+    font-family: var(--font-mono);
+    font-size: clamp(0.8rem, 1.3vw, 1rem);
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+    margin-bottom: clamp(0.4rem, 1vh, 0.7rem);
+}
+.chapter-bignum {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(3.5rem, 12vw, 9rem); line-height: 0.85;
+    letter-spacing: -0.06em; color: var(--ink);
+    margin-bottom: clamp(0.4rem, 1.2vh, 0.8rem);
+}
+.chapter-bignum .of { color: var(--ink-mute); font-size: 0.45em; margin-left: 0.2em; letter-spacing: 0; }
+.chapter-title {
+    font-family: var(--font-display); font-weight: 900;
+    font-size: clamp(1.75rem, 4.2vw, 3rem); line-height: 1.0;
+    letter-spacing: -0.03em; color: var(--ink); text-transform: uppercase;
+    margin-bottom: clamp(0.6rem, 1.6vh, 1rem);
+}
+.chapter-title .hl { color: var(--accent); }
+.chapter-title::after {
+    content: ''; display: block;
+    width: clamp(40px, 5vw, 60px); height: 4px;
+    background: var(--accent);
+    margin-top: clamp(0.5rem, 1.5vh, 1rem);
+}
+.chapter-questions { max-width: 68ch; margin-bottom: clamp(0.8rem, 2vh, 1.3rem); }
+.chapter-q-label {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--accent); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 0.6em; font-weight: 700;
+}
+.chapter-questions ul { list-style: none; display: flex; flex-direction: column; gap: clamp(0.3rem, 0.9vh, 0.55rem); }
+.chapter-questions ul li { font-size: var(--body-size); line-height: 1.45; padding-left: 1.6em; position: relative; color: var(--ink-soft); font-weight: 500; }
+.chapter-questions ul li::before { content: '·'; position: absolute; left: 0.4em; top: -0.1em; color: var(--accent); font-size: 1.4em; font-weight: 900; }
+.chapter-questions ul li b { color: var(--ink); font-weight: 700; }
+.chapter-slides {
+    font-family: var(--font-mono); font-size: var(--small-size);
+    color: var(--ink-mute); letter-spacing: 0.08em;
+    border-top: 1px solid var(--rule); padding-top: clamp(0.5rem, 1.3vh, 0.8rem);
+    max-width: 68ch;
+}
+.chapter-slides b { color: var(--ink); font-weight: 700; }
+
+/* deck structure roadmap (slide 2) */
+.deck-roadmap {
+    display: flex; flex-wrap: wrap; gap: 0.4em; align-items: center;
+    font-family: var(--font-mono); font-size: clamp(0.7rem, 1.05vw, 0.88rem);
+    margin-top: clamp(0.7rem, 1.6vh, 1rem); max-width: 64ch;
+}
+.deck-roadmap .step { padding: 0.35em 0.7em; border: 1.5px solid var(--ink); background: var(--bg); color: var(--ink); font-weight: 600; letter-spacing: 0.02em; }
+.deck-roadmap .step.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.deck-roadmap .arrow { color: var(--ink-mute); font-weight: 700; }
+
+/* protocol stack (Slide ACP) */
+.proto-stack { display: flex; flex-direction: column; border: 2px solid var(--ink); max-width: 920px; margin-top: clamp(0.6rem, 1.5vh, 1rem); }
+.proto-stack .layer { display: grid; grid-template-columns: 130px 1fr; border-bottom: 2px solid var(--ink); }
+.proto-stack .layer:last-child { border-bottom: none; }
+.proto-stack .layer .lh { padding: clamp(0.7rem, 1.6vw, 1rem); background: var(--ink); color: var(--bg); display: flex; flex-direction: column; gap: 0.15em; justify-content: center; }
+.proto-stack .layer.accent .lh { background: var(--accent); }
+.proto-stack .layer .lh .lvl { font-family: var(--font-display); font-weight: 900; font-size: clamp(0.85rem, 1.3vw, 1.05rem); text-transform: uppercase; letter-spacing: 0.05em; }
+.proto-stack .layer .lh .name { font-family: var(--font-display); font-weight: 900; font-size: clamp(1rem, 1.8vw, 1.4rem); letter-spacing: -0.02em; }
+.proto-stack .layer .body { padding: clamp(0.7rem, 1.6vw, 1rem) clamp(0.9rem, 2vw, 1.3rem); font-size: var(--body-size); color: var(--ink-soft); display: flex; flex-direction: column; gap: 0.25em; line-height: 1.5; }
+.proto-stack .layer .body b { color: var(--ink); font-weight: 700; }
+.proto-stack .layer.accent .body { background: var(--accent-soft); }
+
+/* ReWOO/Plan-and-Act module diagram (3-block vertical) */
+.module-flow { display: flex; flex-direction: column; gap: clamp(0.4rem, 1vh, 0.7rem); align-items: center; max-width: 720px; margin: 0 auto; }
+.module-flow .mod { width: 100%; border: 2px solid var(--ink); padding: clamp(0.8rem, 1.8vw, 1.2rem) clamp(1rem, 2.2vw, 1.5rem); background: var(--bg); display: grid; grid-template-columns: 130px 1fr; gap: clamp(0.8rem, 2vw, 1.4rem); align-items: center; }
+.module-flow .mod.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.module-flow .mod .ml { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.1rem, 2vw, 1.5rem); text-transform: uppercase; letter-spacing: -0.01em; }
+.module-flow .mod.accent .ml { color: var(--bg); }
+.module-flow .mod .mb { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.5; font-family: var(--font-mono); font-size: clamp(0.72rem, 1.05vw, 0.88rem); }
+.module-flow .mod.accent .mb { color: var(--bg); }
+.module-flow .arrow-d { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.3rem, 2.2vw, 1.8rem); color: var(--ink-mute); line-height: 1; }
+
+.triple-line .line { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.1rem, 2.8vw, 2rem); text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.25; }
+.triple-line .line .c1 { color: var(--ink); }
+.triple-line .line .c2 { color: var(--ink); }
+.triple-line .line .c3 { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+
+<!-- ===== 01 · Title ===== -->
+<section class="slide title-slide" data-title="표지">
+    <div class="title-num reveal">03</div>
+    <div class="hero">
+        <div class="section-badge reveal">SECTION 03</div>
+        <h1 class="reveal">AI Agent<br><span class="accent">아키텍처 기초</span></h1>
+        <p class="tagline reveal">Loop + Tools + State + Policy</p>
+        <div class="meta reveal"><span>AI Service Architect</span><span>2026</span><span>1h 30m</span></div>
+    </div>
+</section>
+
+
+<!-- ===== 02 · 학습 목표 ===== -->
+<section class="slide" data-title="학습 목표">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">02 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Learning Goals</div>
+        <h2 class="slide-title reveal">오늘의 <span class="hl">목표</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); gap: clamp(0.3rem, 0.9vh, 0.55rem);">
+            <li class="check reveal" data-i="1">단순 LLM 호출과 Agent의 <b>차이</b></li>
+            <li class="check reveal" data-i="2">ReAct · ReWOO · Plan-and-Act <b>추론 패턴 진화</b></li>
+            <li class="check reveal" data-i="3">Tool Use & <b>MCP · A2A · ACP</b> 표준 프로토콜</li>
+            <li class="check reveal" data-i="4"><b>Multi-Agent</b> 시스템 설계 기준</li>
+            <li class="check reveal" data-i="5"><b>StateGraph + Checkpointer</b>로 기본 Agent 구현</li>
+        </ul>
+        <div class="deck-roadmap reveal" data-i="6">
+            <span class="step">Open</span><span class="arrow">→</span>
+            <span class="step accent">Ch1 Agent란?</span><span class="arrow">→</span>
+            <span class="step">Ch2 Tool & MCP</span><span class="arrow">→</span>
+            <span class="step">Ch3 추론 패턴</span><span class="arrow">→</span>
+            <span class="step">Ch4 Multi-Agent · A2A</span><span class="arrow">→</span>
+            <span class="step">Ch5 LangGraph</span><span class="arrow">→</span>
+            <span class="step">Ch6 프로덕션</span><span class="arrow">→</span>
+            <span class="step">Close</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 1] · Agent란 무엇인가 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 1">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">03 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 1 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">01<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Agent란 <span class="hl">무엇인가?</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>단순 LLM 호출과 Agent의 <b>차이</b>는 무엇인가?</li>
+                <li><b>Agent = Loop + Tools + State + Policy</b> 공식의 의미</li>
+                <li>Agent가 만들어내는 <b>5가지 새로운 문제</b>는?</li>
+                <li>그 문제가 <b>실제 사고</b>로 어떻게 번지는가?</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 04 · 챗봇 vs Agent ===== -->
+<section class="slide" data-title="챗봇 vs Agent">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH1</span><span class="slide-num">04 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">What is an Agent?</div>
+        <h2 class="slide-title reveal">챗봇과 Agent는 <span class="hl">무엇이 다른가</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <thead><tr><th></th><th>LLM 호출</th><th class="hl">Agent</th></tr></thead>
+            <tbody>
+                <tr><td><b>입출력</b></td><td>1-shot</td><td>루프(loop)</td></tr>
+                <tr><td><b>외부 세계</b></td><td>없음</td><td>도구(Tool Use)</td></tr>
+                <tr><td><b>상태</b></td><td>대화 맥락뿐</td><td>명시적 State</td></tr>
+                <tr><td><b>결정</b></td><td>유저 지시</td><td>자가 결정</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+
+<!-- ===== 05 · Agent 공식 ===== -->
+<section class="slide" data-title="Agent 공식">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH1</span><span class="slide-num">05 / 40</span></header>
+    <div class="slide-content" style="justify-content: center;">
+        <div class="label-strip reveal">The Formula</div>
+        <div class="formula reveal" data-i="2">
+            <span class="eq">Agent</span>
+            <span class="op">=</span>
+            <span class="term">Loop</span>
+            <span class="op">+</span>
+            <span class="term">Tools</span>
+            <span class="op">+</span>
+            <span class="term">State</span>
+            <span class="op">+</span>
+            <span class="term">Policy</span>
+        </div>
+        <div class="mini-grid reveal" data-i="3" style="margin: 0 auto;">
+            <div class="mini-item"><div class="k">Loop</div><div class="d">여러 단계</div></div>
+            <div class="mini-item"><div class="k">Tools</div><div class="d">외부 연결</div></div>
+            <div class="mini-item"><div class="k">State</div><div class="d">진행 상황</div></div>
+            <div class="mini-item"><div class="k">Policy</div><div class="d">가드레일</div></div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin: clamp(1rem, 2.5vh, 1.6rem) auto 0;">
+            네 요소 중 하나라도 빠지면 <b>Agent가 아님</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 06 · 5 새 문제 ===== -->
+<section class="slide" data-title="5 새 문제">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH1</span><span class="slide-num">06 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">New Problems</div>
+        <h2 class="slide-title reveal">Agent가 만드는 <span class="hl">새 문제 5가지</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>비결정성</h3><p>같은 입력이어도 루프 경로가 다름 · 테스트 어려움</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>Fan-out 비용</h3><p>한 요청당 LLM 여러 번 → 비용·지연 곱해짐</p></div>
+            <div class="num-item reveal" data-i="3"><div class="n">03</div><h3>무한루프 위험</h3><p>step 제한·토큰 예산 필수</p></div>
+            <div class="num-item reveal" data-i="4"><div class="n">04</div><h3>실패 복구</h3><p>툴 실패 시 어디서 재개?</p></div>
+            <div class="num-item accent reveal" data-i="5"><div class="n">05</div><h3>권한·안전</h3><p>도구가 실 시스템을 건드림 → 감사 필수</p></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 07 · 5 문제 사고 사례 ===== -->
+<section class="slide" data-title="5 문제 사고 사례">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH1</span><span class="slide-num">07 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Incident · Five Failures</div>
+        <h2 class="slide-title reveal">Agent 5 문제 <span class="hl">실제 사고 사례</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>비결정성</h3><p>어제 통과한 경로가 오늘 달라짐 → QA '버그' vs 개발 '재현 안 됨'</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>Fan-out 비용</h3><p>한 질문에 LLM 17번 · 1인당 $0.85 → 무료 사용자 1K = 월 $25K</p></div>
+            <div class="num-item reveal" data-i="3"><div class="n">03</div><h3>무한루프</h3><p>Tool 실패 시 '재시도' LLM 판단 → 8시간 만에 토큰 예산 고갈</p></div>
+            <div class="num-item reveal" data-i="4"><div class="n">04</div><h3>실패 복구</h3><p>항공권 결제 후 호텔 예약 실패 → 반쯤 결제된 어정쩡한 상태</p></div>
+            <div class="num-item accent reveal" data-i="5"><div class="n">05</div><h3>권한·안전</h3><p>"내 데이터 다 지워줘" → LLM이 delete 도구 실행, 승인 없음</p></div>
+        </div>
+        <div class="callout reveal" data-i="6" style="margin-top: clamp(0.8rem, 2vh, 1.2rem);">
+            전부 <b>앱 서비스엔 없던 실패 양상</b>. Agent 아키텍트는 안정성 체크리스트의 재설계 필요.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 2] · Tool Use & MCP ===== -->
+<section class="slide chapter-divider" data-title="Chapter 2">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">08 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 2 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">02<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Tool Use & <span class="hl">MCP</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li><b>Function Calling</b>은 어떻게 동작하는가?</li>
+                <li>Tool Use 아키텍처 <b>4 요소</b>는 무엇인가?</li>
+                <li><b>MCP</b>는 왜 등장했고 무엇을 표준화했는가?</li>
+                <li>MCP 생태계 (Registry · 75+ 커넥터) <b>활용 전략</b></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 09 · Tool Use ===== -->
+<section class="slide" data-title="Tool Use">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">09 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Function Calling</div>
+        <h2 class="slide-title reveal">Tool Use <span class="hl">= Function Calling</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s3-agent-tool-use.drawio · rendered SVG -->
+            <svg viewBox="0 0 780 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tool use sequence">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:13px;text-transform:uppercase;letter-spacing:0.05em}
+                    .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:12px;font-weight:500}
+                    .mono{font-family:'JetBrains Mono',monospace;fill:#0a0a0a;font-size:11px;font-weight:500}
+                    .t-w{fill:#fff}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="tu1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <rect class="b" x="80" y="20" width="600" height="55"/>
+                <text class="t" x="130" y="45">User</text>
+                <text class="ts" x="150" y="63">"서울 날씨 알려줘"</text>
+                <line class="ar" x1="380" y1="75" x2="380" y2="95" marker-end="url(#tu1)"/>
+
+                <rect class="b-a" x="80" y="95" width="600" height="55"/>
+                <text class="t" x="130" y="120">LLM</text>
+                <text class="mono" x="200" y="138">{"name":"get_weather","args":{"city":"Seoul"}}</text>
+                <line class="ar" x1="380" y1="150" x2="380" y2="170" marker-end="url(#tu1)"/>
+
+                <rect class="b" x="80" y="170" width="600" height="55"/>
+                <text class="t" x="130" y="195">Runtime</text>
+                <text class="mono" x="220" y="212">get_weather("Seoul")  실행</text>
+                <line class="ar" x1="380" y1="225" x2="380" y2="245" marker-end="url(#tu1)"/>
+
+                <rect class="b" x="80" y="245" width="600" height="55"/>
+                <text class="t" x="130" y="270">Result</text>
+                <text class="ts" x="210" y="288">"맑음, 18도" → LLM 컨텍스트로 주입</text>
+                <line class="ar" x1="380" y1="300" x2="380" y2="320" marker-end="url(#tu1)"/>
+
+                <rect class="b-i" x="80" y="320" width="600" height="55"/>
+                <text class="t t-w" x="180" y="355">LLM → 최종 응답</text>
+            </svg>
+        </div>
+        <div class="callout reveal" data-i="3">
+            모든 주요 Provider 표준 지원. <b>Tool Use는 옵션이 아니라 Agent의 기본 근육.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 10 · Tool 4 요소 ===== -->
+<section class="slide" data-title="Tool 4 요소">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">10 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Architecture Elements</div>
+        <h2 class="slide-title reveal">Tool Use <span class="hl">아키텍처 4 요소</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>Tool Registry</h3><p>이름 · 스키마 · 설명 · 권한 tag</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>Tool Executor</h3><p>샌드박스 · 타임아웃 · 리소스 제한</p></div>
+            <div class="num-item reveal" data-i="3"><div class="n">03</div><h3>Result Formatter</h3><p>긴 결과 요약 · PII 제거</p></div>
+            <div class="num-item accent reveal" data-i="4"><div class="n">04</div><h3>Policy Layer</h3><p>누가 언제 어떤 도구를 쓰는가</p></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 11 · Tool Registry ===== -->
+<section class="slide" data-title="Tool Registry">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">11 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">01 · Tool Registry</div>
+        <h2 class="slide-title reveal">Tool Registry <span class="hl">— 무엇을 저장하나</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>저장 항목</h3>
+                <ul>
+                    <li><b>name</b> — LLM이 호출하는 식별자</li>
+                    <li><b>description</b> — 언제 쓰는지 자연어 설명</li>
+                    <li><b>input_schema</b> — JSON Schema · 필수/선택</li>
+                    <li><b>output_schema</b> — 반환 타입 (선택)</li>
+                    <li><b>version</b> — semver · 호환성 관리</li>
+                    <li><b>owner / team</b> — 책임 주체 추적</li>
+                    <li><b>permission tag</b> — read · write · payment</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>예시 (JSON Schema)</h3>
+                <div class="codeblock" style="font-size: 0.72em; margin-top: 0.5em; padding: 0.7rem 0.9rem; line-height: 1.4;">
+{
+  <span class="ty">"name"</span>: "get_weather",
+  <span class="ty">"description"</span>: "도시의 실시간 날씨를 반환",
+  <span class="ty">"input_schema"</span>: {
+    "type": "object",
+    "properties": {"city": {"type":"string"}},
+    "required": ["city"]
+  },
+  <span class="ty">"version"</span>: "1.2.0",
+  <span class="ty">"owner"</span>: "platform-team",
+  <span class="ty">"tags"</span>: ["read", "external_api"]
+}
+                </div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem);">
+            중앙 관리해야 <b>도구 발견 · 거버넌스 · 버전 호환성</b> 가능 · 흩어두면 추적 불가.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 12 · Tool Executor ===== -->
+<section class="slide" data-title="Tool Executor">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">12 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">02 · Tool Executor</div>
+        <h2 class="slide-title reveal">Tool Executor <span class="hl">— Agent에 결과를 전달하는 흐름</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>한 호출 사이클</h3>
+                <ul>
+                    <li><b>1. LLM</b> — tool_call JSON 발신 (name + args + tool_use_id)</li>
+                    <li><b>2. Executor</b> — schema 검증 → sandbox 실행</li>
+                    <li><b>3. External</b> — 실제 함수 · API · DB · Shell 호출</li>
+                    <li><b>4. Result</b> — raw 반환 + 메타 (duration · status)</li>
+                    <li><b>5. tool_result</b> — tool_use_id 매칭으로 Agent State에 주입</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">Agent 결과 전달 구조</h3>
+                <ul>
+                    <li>messages 배열에 <b>{role: "tool", tool_use_id, content}</b> append</li>
+                    <li>다음 LLM 호출에 자동 포함 → 모델이 결과 보고 다음 판단</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Executor의 안전 장치</h3>
+                <ul>
+                    <li><b>Sandbox</b> — subprocess · container · WASM 격리</li>
+                    <li><b>Timeout</b> — 호출당 상한, 무한 대기 차단</li>
+                    <li><b>Retry · Idempotency 키</b> — 멱등성 보장 후 재시도</li>
+                    <li><b>자원 제한</b> — mem · cpu · net 쿼터</li>
+                    <li><b>관측</b> — 호출당 trace · cost 태깅</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">실패 처리 원칙</h3>
+                <ul>
+                    <li>예외 throw 금지 — 에러도 <b>tool_result</b>로 반환</li>
+                    <li>모델이 에러 메시지 보고 <b>스스로 복구 시도</b></li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.4rem, 1vh, 0.8rem);">
+            <b>tool_use_id로 요청·응답 매칭</b> · 결과는 <b>tool_result 메시지</b>로 Agent 컨텍스트에 주입.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 13 · Result Formatter ===== -->
+<section class="slide" data-title="Result Formatter">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">13 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">03 · Result Formatter</div>
+        <h2 class="slide-title reveal">Result Formatter <span class="hl">— LLM에 들어가기 전 정제</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>왜 필요한가</h3>
+                <ul>
+                    <li>raw 결과 그대로 넣으면 <b>컨텍스트 윈도우 폭발</b> (10MB JSON · 1만 row)</li>
+                    <li>PII · 시크릿이 LLM 메시지에 그대로 노출</li>
+                    <li>HTML · binary · 비표준 포맷은 LLM이 잘못 해석</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">처리 동작</h3>
+                <ul>
+                    <li><b>truncate / summarize</b> — top-N · 요약</li>
+                    <li><b>redact</b> — PII · 토큰 · 키 마스킹</li>
+                    <li><b>convert</b> — HTML → markdown · binary → 메타데이터</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Before / After 예시</h3>
+                <div style="font-family: var(--font-mono); font-size: 0.78em; line-height: 1.5;">
+                    <b>BEFORE</b><br>
+                    <span style="color: var(--ink-mute);">[10,234 rows]</span><br>
+                    {"tx_id":"a3f...","amount":1029.5,<br>
+                    "card":"4532-1234-5678-9012",<br>
+                    "user_email":"alice@x.com",...}<br>
+                    [10,234개 더 ...]
+                </div>
+                <div style="font-family: var(--font-mono); font-size: 0.78em; line-height: 1.5; margin-top: 0.7em;">
+                    <b>AFTER</b><br>
+                    Top 5 by amount:<br>
+                    1. tx_a3f - $1,029.50 (card: ****9012)<br>
+                    2. tx_b71 - $890.30 (card: ****4421)<br>
+                    ...<br>
+                    <span style="color: var(--ink-mute);">총 10,234건 · 합 $891,203</span>
+                </div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.4rem, 1vh, 0.8rem);">
+            <b>"raw → formatted"는 비용·보안 게이트</b> · context 잠식과 PII 누출을 동시에 막음.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 14 · Policy Layer ===== -->
+<section class="slide" data-title="Policy Layer">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">14 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">04 · Policy Layer</div>
+        <h2 class="slide-title reveal">Policy Layer <span class="hl">— 누가 · 언제 · 어떤 도구</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>입력</h3>
+                <ul>
+                    <li><b>user / role</b> — 호출 주체</li>
+                    <li><b>tool name + permission tag</b></li>
+                    <li><b>arguments</b> — 금액 · 대상 · 환경</li>
+                    <li><b>context</b> — 이전 호출 · 시간대 · 세션</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">결정</h3>
+                <ul>
+                    <li><b>allow</b> · 그대로 실행</li>
+                    <li><b>deny</b> · 차단 + 사유</li>
+                    <li><b>require_approval</b> · HITL interrupt</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>구현 패턴</h3>
+                <ul>
+                    <li>룰 엔진 · OPA (Open Policy Agent)</li>
+                    <li>Tool에 <b>permission tag</b>로 라벨링</li>
+                    <li>모든 결정은 <b>감사 로그</b>에 기록</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">현실적 규칙 예시</h3>
+                <ul>
+                    <li>payment.* → 관리자 + HITL 필수</li>
+                    <li>delete.* → 프로덕션 차단</li>
+                    <li>email.send → 내부 도메인만</li>
+                    <li>db.write → working hours만</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.4rem, 1vh, 0.8rem);">
+            Policy 없으면 LLM 오판 한 번이 곧 사고 · <b>사용자 농담을 진지하게 받아 데이터 삭제</b>한 사례 다수.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 15 · Tool 폭증 해결 ===== -->
+<section class="slide" data-title="Tool 폭증 해결">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">15 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Many Tools · Anthropic 표준 해법</div>
+        <h2 class="slide-title reveal">도구가 많아질 때 <span class="hl">— Tool Search Tool · Programmatic Calling</span></h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.3vh, 0.95rem); border-left-color: var(--ink);">
+            <span class="tag">문제</span>
+            MCP 서버 5개 · 도구 50+ 연결 시 정의만 <b>~77K 토큰</b>이 컨텍스트를 잠식 (대화 전부터). GitHub MCP 하나로 Sonnet 컨텍스트 1/4 점유.
+        </div>
+        <div class="num-grid reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.4vh, 1rem); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+            <div class="num-item">
+                <div class="n">01</div>
+                <h3>Tool Search Tool</h3>
+                <p><b>defer_loading: true</b>로 마킹 · 필요할 때만 검색 후 로드 · <b>77K → 8.7K 토큰</b> (85% 절감) · Opus 4.5 정확도 79.5% → 88.1% · 2026.01 Claude Code 기본 탑재</p>
+            </div>
+            <div class="num-item">
+                <div class="n">02</div>
+                <h3>Programmatic Tool Calling</h3>
+                <p>LLM이 <b>Python 코드</b>를 작성해 도구들을 오케스트레이션 · 결과는 sandbox에서 처리, 컨텍스트 진입은 필요한 것만 · <b>43K → 27K 토큰</b> (37% 절감)</p>
+            </div>
+            <div class="num-item accent">
+                <div class="n">03</div>
+                <h3>Tool-RAG 패턴</h3>
+                <p>질문을 받고 <b>관련 있을 만한 도구 5~10개만</b> 동적 노출 · 도구도 RAG의 retrieval source처럼 취급 · 자체 구현도 가능, MCP Anthropic API가 1급 지원</p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem);">
+            <b>좋은 description은 여전히 필수</b> — 검색·매칭의 입력은 결국 도구 description. <b>하지만 모두 등록 ≠ 모두 노출.</b>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 16 · MCP ===== -->
+<section class="slide" data-title="MCP">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">16 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Model Context Protocol</div>
+        <h2 class="slide-title reveal"><span class="hl">MCP</span> · LLM 앱과 도구의 USB-C</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>등장 배경</h3>
+                <ul>
+                    <li>모든 Agent 팀이 SaaS·DB 통합을 자체 구현</li>
+                    <li>Function Calling은 LLM ↔ Tool만 표준화</li>
+                    <li>"도구 자체"의 표준 인터페이스 부재</li>
+                </ul>
+                <h3 style="margin-top: 0.8em;">MCP가 표준화한 4가지</h3>
+                <ul>
+                    <li><b>Tools</b> — 호출 가능한 함수</li>
+                    <li><b>Resources</b> — 읽기 전용 데이터</li>
+                    <li><b>Prompts</b> — 재사용 템플릿</li>
+                    <li><b>Sampling</b> — Server가 Client LLM 호출 (역방향)</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>2026 거버넌스</h3>
+                <ul>
+                    <li>2024-11 Anthropic 공개</li>
+                    <li>2025-11 사양 갱신<br>(Async · Stateless · Server identity)</li>
+                    <li>2026 <b>Linux Foundation Agentic AI Foundation</b> 이관</li>
+                    <li>후원: Anthropic · Block · OpenAI · Google · MS · AWS · Cloudflare · Bloomberg</li>
+                    <li>SDK 다운로드 <b>9,700만+/월</b></li>
+                    <li>Registry 검증 커넥터 <b>75+</b></li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <b>1년 뒤엔 자체 인터페이스가 부채 — 표준에 맞추라는 신호.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 17 · MCP Marketplace ===== -->
+<section class="slide" data-title="MCP Marketplace">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH2</span><span class="slide-num">17 / 40</span></header>
+    <div class="slide-content dense">
+        <div class="label-strip reveal">Marketplace · Smithery</div>
+        <h2 class="slide-title reveal">MCP <span class="hl">Marketplace</span> · 검증된 Server를 즉시 연결</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.4rem, 1vh, 0.7rem); gap: clamp(0.6rem, 1.5vw, 1.2rem); align-items: stretch;">
+            <div style="display:flex; flex-direction:column; gap: 0.5em;">
+                <img src="images/smithery-mcp-marketplace.png" alt="Smithery MCP marketplace home: Give agents more agency" style="width: 100%; object-fit: contain; border: 2px solid var(--ink); background: var(--bg);">
+                <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.05em;">smithery.ai · 650+ MCP Server · OAuth · 원클릭 연결</div>
+            </div>
+            <div class="col-card accent">
+                <h3>Marketplace 역할</h3>
+                <ul>
+                    <li><b>Server 카탈로그</b> — Gmail · Slack · GitHub · Notion · Sheets 등 SaaS 통합 즉시 사용</li>
+                    <li><b>Auth · Credentials 위임</b> — OAuth · API Key · Session을 카탈로그가 대신 처리</li>
+                    <li><b>Hosted Remote</b> — Server를 카탈로그가 호스팅, Client는 URL만 연결</li>
+                </ul>
+                <h3 style="margin-top: 0.4em;">대표 카탈로그</h3>
+                <ul>
+                    <li><b>Smithery</b> — 650+ Server · 검색 · 통계 · OAuth 자동</li>
+                    <li><b>MCP Registry (공식)</b> — 사양 기반 Server 메타데이터</li>
+                    <li><b>Anthropic Connector Directory</b> — Claude 공식 큐레이션</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.4rem, 1vh, 0.7rem);">
+            <b>도구 통합이 NPM 패키지 설치 수준으로 내려옴 · SaaS는 Marketplace, 사내·규제는 자체 Server.</b>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== [CHAPTER 3] · Agent 추론 패턴 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 3">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">18 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 3 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">03<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">Agent <span class="hl">추론 패턴</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li><b>ReAct</b> 패턴의 본질과 한계는 무엇인가?</li>
+                <li><b>ReWOO</b>는 ReAct의 어떤 비효율을 해결하는가?</li>
+                <li><b>Plan-and-Act</b>는 장기 작업에서 왜 강한가?</li>
+                <li>ReAct · ReWOO · Plan-and-Act는 <b>어떤 작업에 맞는가?</b></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 19 · ReAct 패턴 ===== -->
+<section class="slide" data-title="ReAct 패턴">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH3</span><span class="slide-num">19 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Original Paper</div>
+        <h2 class="slide-title reveal"><span class="hl">ReAct</span> 패턴<br><span style="font-weight:500; font-size:0.55em; color:var(--ink-soft); text-transform:none; letter-spacing:0;">Yao et al., 2022 · ICLR 2023</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s3-agent-react.drawio · rendered SVG -->
+            <svg viewBox="0 0 760 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ReAct Thought-Action-Observation loop">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:14px;text-transform:uppercase;letter-spacing:0.05em}
+                    .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:12px;font-weight:500}
+                    .t-w{fill:#fff}
+                    .ts-w{fill:#fff;font-family:'Nunito',sans-serif;font-size:12px;font-weight:500}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                </style>
+                <defs><marker id="r1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <rect class="b" x="100" y="20" width="500" height="60"/>
+                <text class="t" x="150" y="45">Thought</text>
+                <text class="ts" x="150" y="65">이걸 먼저 찾아봐야겠다</text>
+                <line class="ar" x1="350" y1="80" x2="350" y2="120" marker-end="url(#r1)"/>
+
+                <rect class="b-a" x="100" y="120" width="500" height="60"/>
+                <text class="t" x="150" y="145">Action</text>
+                <text class="ts" x="150" y="165">search("서울 날씨")</text>
+                <line class="ar" x1="350" y1="180" x2="350" y2="220" marker-end="url(#r1)"/>
+
+                <rect class="b" x="100" y="220" width="500" height="60"/>
+                <text class="t" x="150" y="245">Observation</text>
+                <text class="ts" x="150" y="265">맑음, 18도</text>
+                <line class="ar" x1="350" y1="280" x2="350" y2="320" marker-end="url(#r1)"/>
+
+                <rect class="b" x="100" y="320" width="500" height="60"/>
+                <text class="t" x="150" y="345">Thought</text>
+                <text class="ts" x="150" y="365">이제 답할 수 있다</text>
+                <line class="ar" x1="350" y1="380" x2="350" y2="420" marker-end="url(#r1)"/>
+
+                <rect class="b-i" x="100" y="420" width="500" height="60"/>
+                <text class="t t-w" x="200" y="457">Final Answer</text>
+
+                <text class="t" x="680" y="155" fill="#ff3300">LOOP</text>
+            </svg>
+        </div>
+        <div class="callout reveal" data-i="3">
+            CoT의 환각을 <b>실제 툴 관찰(Observation)</b>이 현실 데이터로 교정.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 20 · ReAct 효과·한계 ===== -->
+<section class="slide" data-title="ReAct 효과">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH3</span><span class="slide-num">20 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Impact & Limits</div>
+        <h2 class="slide-title reveal">ReAct의 <span class="hl">효과와 한계</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card accent">
+                <h3>효과</h3>
+                <ul>
+                    <li>HotpotQA · FEVER — 환각 감소</li>
+                    <li>WebShop — Imitation·RL 대비 <b>+10%p</b></li>
+                    <li>ALFWorld — <b>+34%p</b></li>
+                    <li>in-context 예시 1~2개로 달성</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>한계</h3>
+                <ul>
+                    <li>작은 모델은 포맷 깨짐</li>
+                    <li>2026: 14B급이 75%+ 안정성</li>
+                    <li>실전에선 <b>Function Calling</b>으로 구조화 권장</li>
+                </ul>
+            </div>
+        </div>
+        <div class="source reveal" data-i="3" style="margin-top: 0.9rem;">arXiv:2210.03629 · Google Research Blog</div>
+    </div>
+</section>
+
+
+<!-- ===== 21 · ReWOO ===== -->
+<section class="slide" data-title="ReWOO">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH3</span><span class="slide-num">21 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Reasoning WithOut Observation</div>
+        <h2 class="slide-title reveal"><span class="hl">ReWOO</span> · 계획·실행 분리<br><span style="font-weight:500; font-size:0.5em; color:var(--ink-soft); text-transform:none; letter-spacing:0;">Xu et al., 2023 · NeurIPS</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="module-flow" style="max-width:none;">
+                <div class="mod">
+                    <div class="ml">Planner</div>
+                    <div class="mb">전체 계획 + placeholder<br>#E1 = search[..]<br>#E2 = calc[#E1]</div>
+                </div>
+                <div class="arrow-d">↓</div>
+                <div class="mod">
+                    <div class="ml">Worker</div>
+                    <div class="mb">no LLM · 도구 일괄 실행<br>의존 없는 호출은 병렬</div>
+                </div>
+                <div class="arrow-d">↓</div>
+                <div class="mod accent">
+                    <div class="ml">Solver</div>
+                    <div class="mb">계획 + 결과 종합<br>최종 답변 생성</div>
+                </div>
+            </div>
+            <div class="col-card">
+                <h3>왜 ReAct보다 빠른가</h3>
+                <ul>
+                    <li>ReAct: 매 단계마다 LLM 호출</li>
+                    <li>ReWOO: <b>LLM 호출 = 2번</b> (Plan + Solve)</li>
+                    <li>도구 호출은 의존 따라 병렬</li>
+                </ul>
+                <h3 style="margin-top: 0.8em;">효과 (HotpotQA)</h3>
+                <ul>
+                    <li>토큰 <b>5배 절감</b></li>
+                    <li>정확도 <b>+4%</b></li>
+                    <li>지연 <b>50~70% 감소</b></li>
+                </ul>
+                <h3 style="margin-top: 0.8em;">한계</h3>
+                <ul>
+                    <li>계획 오류 시 중간 교정 어려움</li>
+                    <li>호출 패턴 <b>예측 가능한 도메인</b>에 강함</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 22 · Plan-and-Act ===== -->
+<section class="slide" data-title="Plan-and-Act">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH3</span><span class="slide-num">22 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Long-Horizon Planning</div>
+        <h2 class="slide-title reveal"><span class="hl">Plan-and-Act</span> · 장기 작업 전용<br><span style="font-weight:500; font-size:0.5em; color:var(--ink-soft); text-transform:none; letter-spacing:0;">UC Berkeley · ICML 2025 (arXiv:2503.09572)</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); align-items: stretch;">
+            <div class="module-flow" style="max-width:none;">
+                <div class="mod">
+                    <div class="ml">Planner<br><span style="font-size:0.65em; font-weight:500; font-family:var(--font-mono);">큰 LLM</span></div>
+                    <div class="mb">고수준 계획 생성<br>1. 검색 진입 → 2. 필터<br>→ 3. 정렬 → 4. 클릭 …</div>
+                </div>
+                <div class="arrow-d">↓ 1단계 위임</div>
+                <div class="mod accent">
+                    <div class="ml">Executor<br><span style="font-size:0.65em; font-weight:500; font-family:var(--font-mono);">작은 LLM</span></div>
+                    <div class="mb">click · type · scroll<br>환경 피드백 반영</div>
+                </div>
+                <div class="arrow-d">↺ Re-Plan?</div>
+            </div>
+            <div class="col-card">
+                <h3>핵심 통찰</h3>
+                <ul>
+                    <li>장기 작업은 <b>계획 ≠ 실행</b></li>
+                    <li>한 모델로 둘 다 잘하기 어려움</li>
+                    <li>역할별 모델 크기 분리</li>
+                </ul>
+                <h3 style="margin-top: 0.8em;">학습 데이터</h3>
+                <ul>
+                    <li>실제 trajectory에서<br>합성 plan 역생성</li>
+                    <li>Planner 일반화 능력 향상</li>
+                </ul>
+                <h3 style="margin-top: 0.8em;">결과</h3>
+                <ul>
+                    <li>WebArena-Lite <b>57.6% SOTA</b></li>
+                    <li>WebVoyager <b>81.4%</b> (text-only SOTA)</li>
+                    <li>웹·GUI 자동화에 강함</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <b>짧은 작업 → ReAct · 호출 많고 의존 명확 → ReWOO · 장기·환경 상호작용 → Plan-and-Act.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 4] · Multi-Agent & 통신 프로토콜 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 4">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">23 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 4 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">04<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3"><span class="hl">Multi-Agent</span> & A2A · ACP</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>Plan-and-Execute · Reflexion · Multi-Agent · Graph-based <b>패턴은 언제?</b></li>
+                <li>단일 Agent에서 <b>Multi-Agent</b>로 넘어가는 시점</li>
+                <li><b>A2A</b> 프로토콜의 핵심 (Agent Card · Task lifecycle)</li>
+                <li><b>ACP</b>가 A2A로 통합된 배경 · 3-Layer 스택</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 24 · 다른 패턴 ===== -->
+<section class="slide" data-title="다른 패턴">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH4</span><span class="slide-num">24 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Other Patterns</div>
+        <h2 class="slide-title reveal">그 외 주요 <span class="hl">Agent 패턴</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>Plan-and-Execute</h3><p>Plan 단계와 Execute 단계 분리. 다단계 리서치.</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>Reflexion</h3><p>결과 자기평가 후 개선. 고난도 코드 생성.</p></div>
+            <div class="num-item reveal" data-i="3"><div class="n">03</div><h3>Multi-Agent Supervisor</h3><p>전문가 Agent들을 Supervisor가 라우팅. CrewAI 방식.</p></div>
+            <div class="num-item accent reveal" data-i="4"><div class="n">04</div><h3>Graph-based</h3><p>상태 기계로 명시적 전이. <b>LangGraph 철학.</b></p></div>
+        </div>
+        <div class="callout reveal" data-i="5" style="margin-top: clamp(0.8rem, 2vh, 1.2rem);">
+            오늘 다룰 패턴: <b>Graph-based · LangGraph</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 25 · 4 패턴 유스케이스 ===== -->
+<section class="slide" data-title="4 패턴 유스케이스">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH4</span><span class="slide-num">25 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Patterns · Use Cases</div>
+        <h2 class="slide-title reveal">4 Agent 패턴의 <span class="hl">실전 유스케이스</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>ReAct <span class="sub">사내 지식 QA</span></h3>
+                <ul>
+                    <li>Q: "지난 분기 매출 1위 제품?"</li>
+                    <li>Thought → <b>query_sales_db(Q3)</b> → Obs</li>
+                    <li>Final: "제품 A · $3.2M"</li>
+                    <li><b>짧은 루프, 도구 1~3번</b>에 최적</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>Plan-and-Execute <span class="sub">시장 조사 리포트</span></h3>
+                <ul>
+                    <li>Plan: [경쟁사·비교·차트·요약]</li>
+                    <li>Execute: 각 단계 순차 수행</li>
+                    <li>20분 · 10페이지 리포트</li>
+                    <li><b>길고 단계 명확</b>한 작업</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>Reflexion <span class="sub">고난도 코드 생성</span></h3>
+                <ul>
+                    <li>1차 답안 → 테스트 3/1 실패</li>
+                    <li>자가 개선 → 2차 답안 → 통과</li>
+                    <li>HumanEval <b>+20%p</b> 향상 사례</li>
+                    <li><b>검증 가능한 영역</b>(코드·수학)</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Multi-Agent Supervisor <span class="sub">블로그 팀</span></h3>
+                <ul>
+                    <li>Supervisor → Researcher (자료)</li>
+                    <li>→ Writer (초안) → Editor (교정)</li>
+                    <li>역할 분리 = 프롬프트 단순·품질 ↑</li>
+                    <li><b>CrewAI 기본 철학</b></li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.8rem, 2vh, 1.2rem);">
+            <b>단순 조회 ReAct · 장기 Plan-Execute · 품질 Reflexion · 역할 분리 Multi-Agent.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 26 · 언제 Multi-Agent로 ===== -->
+<section class="slide" data-title="When Multi-Agent">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH4</span><span class="slide-num">26 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">When to Split</div>
+        <h2 class="slide-title reveal">언제 <span class="hl">Multi-Agent</span>로 넘어가는가</h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem);">
+            <div class="col-card">
+                <h3>단일 Agent로 충분</h3>
+                <ul>
+                    <li>도구 5~10개, 한 도메인 내 작업</li>
+                    <li>한 LLM이 도구·정책 머리에 다 담음</li>
+                    <li>예: 사내 지식 QA, 고객 문의 1차</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Multi-Agent 신호</h3>
+                <ul>
+                    <li>Tool <b>30개+</b> → 프롬프트 폭증</li>
+                    <li>역할 분리 자연스러움 (Researcher · Writer · Editor)</li>
+                    <li>도메인별 다른 모델·정책</li>
+                    <li>부서 간 책임 경계 (다른 팀 Agent 협업)</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout ink reveal" data-i="3" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <span class="tag">함정 3가지</span>
+            <b>N제곱 비용</b> 가능 · Trace가 Agent 경계 가로질러야 (OTel) · <b>Hop Count 상한</b>으로 호출 루프(A→B→A) 방지.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 27 · A2A ===== -->
+<section class="slide" data-title="A2A">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH4</span><span class="slide-num">27 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Agent2Agent Protocol</div>
+        <h2 class="slide-title reveal"><span class="hl">A2A</span> · opaque Agent들의 공통 규약<br><span style="font-weight:500; font-size:0.5em; color:var(--ink-soft); text-transform:none; letter-spacing:0;">Google · Linux Foundation · 2025-04 · 2026-04 기준 150+ 조직 프로덕션</span></h2>
+        <div class="num-grid" style="margin-top: clamp(0.7rem, 1.8vh, 1.2rem); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Agent Card</h3>
+                <p>JSON 카드로 capabilities · auth · endpoint 노출. <b>Agent를 찾을 수 있는 단위</b>로 만드는 표준.</p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Task Lifecycle</h3>
+                <p>id · state · artifacts · history.<br>submitted → working → input-required → completed</p>
+            </div>
+            <div class="num-item reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>Transport</h3>
+                <p>JSON-RPC 2.0 over HTTP(S)<br>동기 · SSE 스트리밍 · 비동기 Push</p>
+            </div>
+            <div class="num-item accent reveal" data-i="4">
+                <div class="n">04</div>
+                <h3>Opacity</h3>
+                <p>내부 메모리·프롬프트·툴 미공개<br><b>블랙박스를 그대로 두고 협업</b><br>다른 벤더·프레임워크 Agent와 통신 가능</p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="5" style="margin-top: clamp(0.7rem, 1.6vh, 1rem);">
+            <b>MCP는 단일 Agent의 도구 표준 · A2A는 Agent 간 협업 표준 — 다른 층입니다.</b>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 28 · ACP & 3-Layer 스택 ===== -->
+<section class="slide" data-title="3-Layer Stack">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH4</span><span class="slide-num">28 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">ACP merged · 3-Layer Stack</div>
+        <h2 class="slide-title reveal"><span class="hl">3-Layer</span> 프로토콜 스택</h2>
+        <div class="callout reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <span class="tag">ACP (IBM · 2025) → A2A로 통합 (2026)</span>
+            HTTP-native · REST 기반 Agent 통신 프로토콜. LF 산하에서 A2A에 합쳐져 <b>Agent 간 통신 표준은 A2A 하나로 일원화</b>됐습니다.
+        </div>
+        <div class="proto-stack reveal" data-i="3">
+            <div class="layer">
+                <div class="lh"><div class="lvl">Layer 3</div><div class="name">WebMCP</div></div>
+                <div class="body"><b>Agent ↔ 웹 환경</b> · 브라우저·웹 콘텐츠 표준화<br>2026 들어 떠오른 신생 영역, 컨센서스 후보</div>
+            </div>
+            <div class="layer accent">
+                <div class="lh"><div class="lvl">Layer 2</div><div class="name">A2A</div></div>
+                <div class="body"><b>Agent ↔ Agent</b> · Task · Card · JSON-RPC<br>← ACP merged, 150+ 조직 프로덕션</div>
+            </div>
+            <div class="layer">
+                <div class="lh"><div class="lvl">Layer 1</div><div class="name">MCP</div></div>
+                <div class="body"><b>Agent ↔ Tool · Resource</b> · 단일 Agent의 외부 통합<br>2024-11 공개, 9,700만+ SDK 다운로드/월</div>
+            </div>
+        </div>
+        <div class="callout ink reveal" data-i="4" style="margin-top: clamp(0.7rem, 1.6vh, 1rem);">
+            세 층 모두 <b>Agentic AI Foundation</b>(Linux Foundation 산하, 146 회원사) 거버넌스 — 한 회사 표준이 아닌 <b>산업 표준</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 5] · LangGraph로 구현 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 5">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">29 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 5 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">05<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3"><span class="hl">LangGraph</span>로 구현</h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>LangChain과 LangGraph는 어떤 <b>역할 차이</b>를 갖는가?</li>
+                <li>LangGraph <b>5 요소</b> (State · Node · Edge · ToolNode · Checkpointer)</li>
+                <li>기본 Tool-use Agent <b>루프 구조</b></li>
+                <li>State · Tool · 관측성 <b>설계 체크리스트</b></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 30 · LangChain vs LangGraph ===== -->
+<section class="slide" data-title="LC vs LG">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">30 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Same Company, Different Layer</div>
+        <h2 class="slide-title reveal">LangChain <span style="color:var(--ink-mute);">vs</span> <span class="hl">LangGraph</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>LangChain <span class="sub">빌딩 블록</span></h3>
+                <ul>
+                    <li>LLM 래퍼 · Retriever · Tool</li>
+                    <li>선형 <i>Chain</i> 합성에 강함</li>
+                    <li>짧은 Chain이면 충분</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>LangGraph <span class="sub">실행 엔진</span></h3>
+                <ul>
+                    <li>상태 그래프 (StateGraph)</li>
+                    <li>체크포인팅 · HITL · 지속성 1급</li>
+                    <li>프로덕션·거버넌스 필요시</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.9rem, 2vh, 1.4rem);">
+            선택 조건: <b>다단계 + 재시작 + 사람 승인 + 감사 로그</b> 필요 시 LangGraph.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 31 · Agent vs Workflow ===== -->
+<section class="slide" data-title="Agent vs Workflow">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">31 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">LangGraph = Agent + Workflow</div>
+        <h2 class="slide-title reveal">Agent <span style="color:var(--ink-mute);">vs</span> <span class="hl">Workflow</span> · 둘 다 LangGraph로 구현</h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(0.9rem, 2.2vh, 1.5rem);">
+            <thead><tr><th></th><th>Workflow</th><th class="hl">Agent</th></tr></thead>
+            <tbody>
+                <tr><td><b>경로 결정</b></td><td>개발자가 사전 정의 (deterministic)</td><td>LLM이 매 step 동적 결정</td></tr>
+                <tr><td><b>예시</b></td><td>Routing · Parallelization · Orchestrator-Workers · Evaluator-Optimizer</td><td>ReAct 루프 · Plan-and-Act</td></tr>
+                <tr><td><b>예측 가능성</b></td><td class="hl">높음 · 테스트 쉬움</td><td>낮음 · trace 분석 필수</td></tr>
+                <tr><td><b>비용·지연</b></td><td>낮고 안정</td><td>높고 변동</td></tr>
+                <tr><td><b>적합 작업</b></td><td>도메인 좁음 · SLA·감사 중요</td><td>탐색·문제 다양</td></tr>
+                <tr><td><b>LangGraph 표현</b></td><td>Edge · Conditional Edge로 명시 흐름</td><td>ToolNode + LLM 루프 + Conditional Edge</td></tr>
+            </tbody>
+        </table>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.7vh, 1.2rem);">
+            <b>LangGraph는 Agent 전용이 아님</b> · 같은 StateGraph 위에서 Workflow와 Agent를 자유롭게 섞을 수 있는 게 차별점.
+        </div>
+        <div class="source reveal" data-i="4" style="margin-top: 0.6rem;">Anthropic · "Building Effective Agents" (2024-12) · LangGraph docs</div>
+    </div>
+</section>
+
+
+
+<!-- ===== 32 · 핵심 개념 ===== -->
+<section class="slide" data-title="핵심 개념">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">32 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Core Concepts</div>
+        <h2 class="slide-title reveal">LangGraph <span class="hl">5 요소</span></h2>
+        <div class="num-grid" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="num-item reveal" data-i="1"><div class="n">01</div><h3>State</h3><p>TypedDict. 노드 간 공유 컨텍스트</p></div>
+            <div class="num-item reveal" data-i="2"><div class="n">02</div><h3>Node</h3><p>함수/Runnable. State → 업데이트</p></div>
+            <div class="num-item reveal" data-i="3"><div class="n">03</div><h3>Edge</h3><p>Conditional — 상태 기반 전이</p></div>
+            <div class="num-item reveal" data-i="4"><div class="n">04</div><h3>ToolNode</h3><p>prebuilt — 툴 실행 전용 노드</p></div>
+            <div class="num-item accent reveal" data-i="5"><div class="n">05</div><h3>Checkpointer</h3><p>SQLite/Redis → <b>재개 가능</b></p></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 33 · 기본 루프 ===== -->
+<section class="slide" data-title="기본 루프">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">33 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Minimal Agent</div>
+        <h2 class="slide-title reveal">기본 Tool-use <span class="hl">루프</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <!-- s3-agent-basic-loop.drawio · rendered SVG -->
+            <svg viewBox="0 0 820 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Basic agent loop">
+                <style>
+                    .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .b-r{fill:#ff3300;stroke:#0a0a0a;stroke-width:2}
+                    .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:14px;text-anchor:middle;text-transform:uppercase;letter-spacing:0.05em}
+                    .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;text-anchor:middle;font-weight:500}
+                    .t-w{fill:#fff}
+                    .ts-w{fill:#fff;font-family:'Nunito',sans-serif;font-size:11px;text-anchor:middle;font-weight:500}
+                    .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                    .ar-r{fill:none;stroke:#ff3300;stroke-width:2}
+                    .lbl{font-family:'Nunito',sans-serif;fill:#0a0a0a;font-size:13px;font-weight:700}
+                    .lbl-r{fill:#ff3300}
+                </style>
+                <defs><marker id="bl1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker>
+                      <marker id="bl1r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff3300"/></marker>
+                </defs>
+
+                <rect class="b-r" x="330" y="40" width="200" height="80"/>
+                <text class="t t-w" x="430" y="75">Agent</text>
+                <text class="ts-w" x="430" y="95">LLM.bind_tools(...)</text>
+
+                <line class="ar" x1="430" y1="120" x2="430" y2="180" marker-end="url(#bl1)"/>
+
+                <polygon class="b" points="430,180 560,250 430,320 300,250"/>
+                <text class="t" x="430" y="245">tool_calls ?</text>
+
+                <line class="ar" x1="300" y1="250" x2="200" y2="250" marker-end="url(#bl1)"/>
+                <text class="lbl" x="250" y="240" text-anchor="middle">yes</text>
+
+                <line class="ar" x1="560" y1="250" x2="650" y2="250" marker-end="url(#bl1)"/>
+                <text class="lbl" x="605" y="240" text-anchor="middle">no</text>
+
+                <rect class="b-a" x="60" y="210" width="200" height="80"/>
+                <text class="t" x="160" y="245">Tools</text>
+                <text class="ts" x="160" y="265">ToolNode</text>
+
+                <ellipse class="b-i" cx="720" cy="250" rx="60" ry="35"/>
+                <text class="t t-w" x="720" y="255">END</text>
+
+                <!-- loop back -->
+                <path class="ar-r" d="M 60 250 L 20 250 L 20 80 L 330 80" marker-end="url(#bl1r)" fill="none"/>
+                <text class="lbl lbl-r" x="30" y="160">result</text>
+            </svg>
+        </div>
+        <div class="callout reveal" data-i="3">
+            <b>두 노드 루프 = Agent의 심장.</b> 모든 Agent의 최소 구조.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 34 · State 설계 ===== -->
+<section class="slide" data-title="State 설계">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">34 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">State Design</div>
+        <h2 class="slide-title reveal">State는 <span class="hl">직렬화 가능</span> 필수</h2>
+        <div class="codeblock reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+<span class="kw">from</span> typing <span class="kw">import</span> Annotated, TypedDict
+<span class="kw">from</span> langgraph.graph.message <span class="kw">import</span> add_messages
+
+<span class="kw">class</span> <span class="ty">AgentState</span>(TypedDict):
+    messages: Annotated[list, add_messages]   <span class="cm"># 대화 이력</span>
+    user_id: str
+    tool_budget: int           <span class="cm"># 남은 tool 호출 횟수 · 무한루프 방지</span>
+    needs_approval: bool       <span class="cm"># 승인 필요 플래그</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 35 · Tool 체크리스트 ===== -->
+<section class="slide" data-title="Tool 체크리스트">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">35 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Tool Design</div>
+        <h2 class="slide-title reveal">Tool 설계 <span class="hl">6 체크리스트</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); gap: clamp(0.35rem, 1vh, 0.7rem);">
+            <li class="check reveal" data-i="1" data-n="01"><b>Docstring</b>이 명확한가 <span class="muted">(LLM이 읽는 유일한 설명)</span></li>
+            <li class="check reveal" data-i="2" data-n="02"><b>인자 스키마</b>가 엄격한가 <span class="muted">(Pydantic · JSON Schema)</span></li>
+            <li class="check reveal" data-i="3" data-n="03"><b>Idempotent</b>한가 <span class="muted">(재시도 안전)</span></li>
+            <li class="check reveal" data-i="4" data-n="04"><b>타임아웃</b>이 있는가</li>
+            <li class="check reveal" data-i="5" data-n="05"><b>권한 체크</b>(user_id 기반)가 있는가</li>
+            <li class="check reveal" data-i="6" data-n="06"><b>결과 크기 제한</b>이 있는가 <span class="muted">(LLM 컨텍스트 보호)</span></li>
+        </ul>
+        <div class="callout reveal" data-i="7" style="margin-top: clamp(0.8rem, 1.8vh, 1.1rem);">
+            <span class="tag">흔한 함정</span>
+            제한 없이 도구가 10MB JSON 반환 → <b>다음 LLM 호출 컨텍스트 붕괴</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 36 · 관측성 ===== -->
+<section class="slide" data-title="관측성">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH5</span><span class="slide-num">36 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Observability</div>
+        <h2 class="slide-title reveal">관측성 <span class="hl">설계</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(1rem, 2.5vh, 1.6rem);">
+            <div class="col-card">
+                <h3>필수 항목</h3>
+                <ul>
+                    <li>노드 진입/종료마다 OTel span</li>
+                    <li>Tool 호출 결과 요약 → trace attr</li>
+                    <li>실패 메시지는 State에 기록</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>도구</h3>
+                <ul>
+                    <li>Langfuse · LangSmith</li>
+                    <li>OpenTelemetry 표준</li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout ink reveal" data-i="3" style="margin-top: clamp(0.9rem, 2vh, 1.4rem);">
+            <span class="tag">패턴</span>
+            툴 실패는 예외 throw 금지. 에러를 <code style="font-family:var(--font-mono);">state.messages</code>에 기록 → <b>모델이 스스로 복구</b>.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== [CHAPTER 6] · 프로덕션 ===== -->
+<section class="slide chapter-divider" data-title="Chapter 6">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">37 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 6 / 6</div>
+        <div class="chapter-bignum reveal" data-i="2">06<span class="of">/6</span></div>
+        <h2 class="chapter-title reveal" data-i="3">프로덕션 <span class="hl">체크리스트</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>Agent를 프로덕션에 올리기 전 <b>7 체크리스트</b></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 38 · 프로덕션 7 ===== -->
+<section class="slide" data-title="프로덕션 7">
+    <header class="slide-header"><span class="section-marker">03 · AGENT · CH6</span><span class="slide-num">38 / 40</span></header>
+    <div class="slide-content">
+        <div class="label-strip reveal">Production Readiness</div>
+        <h2 class="slide-title reveal">Agent 프로덕션 <span class="hl">7 체크리스트</span></h2>
+        <ul class="bullet-list" style="margin-top: clamp(1rem, 2.5vh, 1.6rem); gap: clamp(0.35rem, 1vh, 0.7rem);">
+            <li class="reveal" data-i="1" data-n="01"><b>Step Budget</b> <span class="muted">— 최대 루프 · 최대 토큰</span></li>
+            <li class="reveal" data-i="2" data-n="02"><b>Tool Timeout & Retry</b> <span class="muted">— 멱등 키</span></li>
+            <li class="reveal" data-i="3" data-n="03"><b>Observability</b> <span class="muted">— trace · token/cost per trace</span></li>
+            <li class="reveal" data-i="4" data-n="04"><b>Human-in-the-loop</b> <span class="muted">— interrupt + resume</span></li>
+            <li class="reveal" data-i="5" data-n="05"><b>Policy</b> <span class="muted">— Tool 권한 · PII 스캔</span></li>
+            <li class="reveal" data-i="6" data-n="06"><b>Evals</b> <span class="muted">— 기대 경로 / 기대 도구 호출</span></li>
+            <li class="reveal" data-i="7" data-n="07"><b>Rollback</b> <span class="muted">— 프롬프트 · 모델 버전 되돌리기</span></li>
+        </ul>
+        <div class="callout reveal" style="margin-top: clamp(0.8rem, 1.8vh, 1.1rem);">
+            Eval은 응답 문자열이 아닌 <b>경로·도구 호출</b>까지 검증해야 Regression 포착 가능.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== [CLOSING] · 코스 마무리 ===== -->
+<section class="slide chapter-divider" data-title="Closing">
+    <header class="slide-header"><span class="section-marker">03 · AGENT</span><span class="slide-num">39 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Closing · Course Wrap-up</div>
+        <div class="chapter-bignum reveal" data-i="2" style="font-size: clamp(2.5rem, 8vw, 6rem);">END<span class="of"></span></div>
+        <h2 class="chapter-title reveal" data-i="3">코스 <span class="hl">마무리</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">세 섹션 통합 한 줄</div>
+            <ul>
+                <li><b>RAG</b>로 지식을 주입하고</li>
+                <li><b>GATEWAY</b>로 모델을 운영하고</li>
+                <li><b>AGENT</b>로 루프를 돌린다</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 40 · 마무리 ===== -->
+<section class="slide end-slide" data-title="코스 마무리">
+    <div class="slide-content" style="justify-content: center;">
+        <div class="label-strip reveal">Course Wrap-up</div>
+        <h2 class="slide-title reveal">세 섹션의 <span class="hl">한 줄 요약</span></h2>
+        <div class="triple-line reveal" data-i="2" style="margin: clamp(1.2rem, 3.5vh, 2.2rem) 0;">
+            <div class="line"><span class="c1">RAG</span>로 지식을 주입하고,</div>
+            <div class="line"><span class="c2">GATEWAY</span>로 모델을 운영하고,</div>
+            <div class="line"><span class="c3">AGENT</span>로 루프를 운영</div>
+        </div>
+        <div class="chip-grid reveal" data-i="3" style="margin-top: clamp(0.8rem, 2vh, 1.3rem); max-width: 920px;">
+            <div class="chip">Agent 공식 (Loop+Tools+State+Policy)</div>
+            <div class="chip">ReAct → ReWOO → Plan-and-Act 진화</div>
+            <div class="chip">MCP · A2A · 3-Layer 프로토콜 스택</div>
+            <div class="chip">단일 Agent vs Multi-Agent 분리 기준</div>
+            <div class="chip">LangChain vs LangGraph 레이어</div>
+            <div class="chip">StateGraph + Checkpointer 최소 구조</div>
+            <div class="chip">프로덕션 7 체크리스트</div>
+        </div>
+        <div class="big-quote reveal" data-i="4" style="margin-top: clamp(1.2rem, 3vh, 2rem); text-align:left; max-width: none;">
+            <span class="hl">Thank you.</span>
+        </div>
+    </div>
+</section>
+
+
+<script>
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.current = 0;
+        this.navContainer = document.getElementById('navDots');
+        this.progressBar = document.getElementById('progressBar');
+        this._buildNavDots();
+        this._setupObserver();
+        this._setupKeyboard();
+        this._setupTouch();
+        this._setupWheel();
+        this._updateProgress();
+    }
+    _buildNavDots() {
+        this.navContainer.innerHTML = '';
+        this.slides.forEach((slide, i) => {
+            const btn = document.createElement('button');
+            btn.setAttribute('aria-label', `Slide ${i + 1}: ${slide.dataset.title || ''}`);
+            btn.addEventListener('click', () => this.goTo(i));
+            this.navContainer.appendChild(btn);
+        });
+        this._syncDots();
+    }
+    _setupObserver() {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((e) => {
+                if (e.isIntersecting && e.intersectionRatio > 0.55) {
+                    e.target.classList.add('visible');
+                    this.current = this.slides.indexOf(e.target);
+                    this._syncDots();
+                    this._updateProgress();
+                }
+            });
+        }, { threshold: [0, 0.25, 0.55, 0.9] });
+        this.slides.forEach((s) => io.observe(s));
+    }
+    _setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault(); this.goTo(this.current + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault(); this.goTo(this.current - 1);
+            } else if (e.key === 'Home') { this.goTo(0); }
+            else if (e.key === 'End')   { this.goTo(this.slides.length - 1); }
+        });
+    }
+    _setupTouch() {
+        let startY = 0, startX = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; startX = e.touches[0].clientX; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = startY - e.changedTouches[0].clientY;
+            const dx = startX - e.changedTouches[0].clientX;
+            if (Math.abs(dy) < 50 || Math.abs(dy) < Math.abs(dx)) return;
+            this.goTo(this.current + (dy > 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    _setupWheel() { window.addEventListener('scroll', () => this._updateProgress(), { passive: true }); }
+    _syncDots() { this.navContainer.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === this.current)); }
+    _updateProgress() { const pct = (this.current / Math.max(1, this.slides.length - 1)) * 100; this.progressBar.style.width = pct + '%'; }
+    goTo(i) { const idx = Math.max(0, Math.min(this.slides.length - 1, i)); this.slides[idx].scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+</script>
+</body>
+</html>

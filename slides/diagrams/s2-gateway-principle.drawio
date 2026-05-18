@@ -1,0 +1,41 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <diagram id="gw-principle" name="Gateway Principle">
+    <mxGraphModel dx="1200" dy="600" grid="1" gridSize="10" page="1" pageWidth="1200" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- App -->
+        <mxCell id="app" value="APPLICATION" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="200" width="140" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Gateway -->
+        <mxCell id="gw" value="LLM GATEWAY&#10;&#10;Auth · Route · Cache&#10;Fallback · Log · PII" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF3300;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="400" y="140" width="280" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Providers -->
+        <mxCell id="p1" value="AZURE OPENAI" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="80" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="OPENAI" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="160" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" value="ANTHROPIC" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="240" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" value="SELF-HOSTED (vLLM)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#0A0A0A;strokeWidth=2;fontFamily=Archivo;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="320" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows -->
+        <mxCell id="a1" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=3;endSize=10;" edge="1" parent="1" source="app" target="gw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a2" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="gw" target="p1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a3" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="gw" target="p2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a4" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="gw" target="p3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a5" style="endArrow=classic;html=1;strokeColor=#0A0A0A;strokeWidth=2;" edge="1" parent="1" source="gw" target="p4"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
