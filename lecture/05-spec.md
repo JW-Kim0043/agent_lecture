@@ -2,7 +2,7 @@
 
 > 작성일: 2026-05-26 / 컷오프: 2026-05 / **CP-1 확정: 2026-05-26 (권장안 9건 모두 채택)**
 > 사용자가 제시한 새 5장 구조를 단일 진실 원천으로 삼아, 기존 `01-curriculum.md`·`02-architecture-canvas.md`·`03-guide.md`·`04-slides.html`의 콘텐츠를 재배치 + 2026-05 최신 트렌드/거버넌스/조직 변화를 신규 보강한 spec.
-> 이 spec이 확정되면 `slides/section-architect.html`을 이 순서로 재작성하고, 필요 시 가이드(`03-guide.md`)도 동기화.
+> 이 spec이 확정되면 `slides/AI에이전트-아키텍처-강의.html`을 이 순서로 재작성하고, 필요 시 가이드(`03-guide.md`)도 동기화.
 
 ## ✅ 확정 결정 (CP-1, 2026-05-26)
 
@@ -14,7 +14,7 @@
 | Q4 | Ch2 비즈니스 시나리오 | 고객서비스 · 코드개발 · 운영자동화 |
 | Q5 | Ch5 거버넌스 중심 | Korea AI 기본법 중심 + EU AI Act 한 줄 + NIST·ISO 참고 |
 | Q6 | Ch5 조직 변화 슬라이드 | 한 슬라이드에 조직 변화 + 도입 매트릭스 좌우 분할 |
-| Q7 | 작업 순서 | spec 확정 → slides/section-architect.html만 재작성 |
+| Q7 | 작업 순서 | spec 확정 → slides/AI에이전트-아키텍처-강의.html만 재작성 |
 | Q8 | 02-canvas 동기화 | v1 보존 + 05-spec.md가 v2 단일 진실 원천 |
 | Q9 | NEW 자료 조사 | spec 확정 → NEW 자료 조사 라운드 → HTML 작성 |
 
@@ -28,7 +28,7 @@
 | 시간 | 2h (전환·Q&A 포함) + 10~15분 휴식 |
 | 슬라이드 수 | 40장 (휴식 포함) |
 | 컷오프 | 2026-05 |
-| 단일 진실 원천 | 본 spec (확정 후) → slides/section-architect.html |
+| 단일 진실 원천 | 본 spec (확정 후) → slides/AI에이전트-아키텍처-강의.html |
 | 기존 자료 재사용 | 01-curriculum (7장 → 5장 재매핑) / 02-canvas (C1~C12) / 03-guide (§1~§7) / 04-slides (v1) |
 | 핵심 thread | `Agent = Loop + Tools + State + Policy` · 비즈니스 표현 = 두뇌(LLM) · 손발(Tools) · 기억(Memory) |
 | 강의 한 줄 | **"아키텍트는 대체되지 않고, 6원칙으로 확장된다"** |
@@ -350,7 +350,7 @@
 ### B. 산출물 방향 (다음 단계)
 
 7. **본 spec 확정 후 작업 순서** — 
-   - 옵션 1 · spec 확정 → `slides/section-architect.html`만 재작성 (권장)
+   - 옵션 1 · spec 확정 → `slides/AI에이전트-아키텍처-강의.html`만 재작성 (권장)
    - 옵션 2 · spec 확정 → HTML + `03-guide.md` 동시 동기화
    - 옵션 3 · spec 확정 → HTML 먼저 + 가이드는 후속
 
@@ -370,7 +370,7 @@
 
 1. 이 spec의 §1 (5장 구조)·§3 (슬라이드 매핑)·§7A (콘텐츠 결정) 확정
 2. NEW 자료 조사 라운드 (필요 시) — §7C
-3. `slides/section-architect.html` 재작성 — 5장 40 슬라이드
+3. `slides/AI에이전트-아키텍처-강의.html` 재작성 — 5장 40 슬라이드
 4. (선택) `03-guide.md` 동기화
 
 ---
