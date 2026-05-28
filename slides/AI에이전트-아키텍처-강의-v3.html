@@ -1,0 +1,2687 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Agent 아키텍처 — 아키텍트를 위한 강의</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Nunito:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --bg: #ffffff;
+    --bg-grid: #f5f5f5;
+    --ink: #0a0a0a;
+    --ink-soft: #3a3a3a;
+    --ink-mute: #8a8a8a;
+    --rule: #e5e5e5;
+    --accent: #ff3300;
+    --accent-soft: #ffe5de;
+    --orange: #f58220;
+    --orange-soft: #ffe8d9;
+
+    --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body:    'Nunito', 'Archivo', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+    --title-size:  clamp(2rem, 5.5vw, 4.25rem);
+    --h2-size:     clamp(1.35rem, 3.3vw, 2.35rem);
+    --h3-size:     clamp(0.95rem, 1.95vw, 1.35rem);
+    --body-size:   clamp(0.78rem, 1.35vw, 1.05rem);
+    --small-size:  clamp(0.65rem, 1vw, 0.8rem);
+    --mono-size:   clamp(0.7rem, 1.1vw, 0.95rem);
+
+    --slide-padding: clamp(1.25rem, 4vw, 3.5rem);
+    --content-gap:   clamp(0.6rem, 1.8vw, 1.6rem);
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration: 0.55s;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: var(--font-body); font-weight: 400;
+    background: var(--bg); color: var(--ink); line-height: 1.55;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; scroll-snap-align: start;
+    display: flex; flex-direction: column; position: relative;
+    background: var(--bg);
+}
+.slide::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: clamp(40px, 6vw, 80px) clamp(40px, 6vw, 80px);
+    pointer-events: none; opacity: 0.85;
+}
+.slide-content {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    max-height: 100%; overflow: hidden;
+    padding: var(--slide-padding);
+    padding-top: clamp(3.2rem, 7.5vh, 5rem);
+    padding-bottom: clamp(2rem, 5vh, 3.5rem);
+    position: relative; z-index: 2;
+}
+img, svg { max-width: 100%; max-height: min(55vh, 420px); }
+
+@media (max-height: 700px) {
+    :root { --slide-padding: clamp(0.9rem, 3vw, 2rem); --title-size: clamp(1.4rem, 4.5vw, 2.8rem); --h2-size: clamp(1.1rem, 3vw, 1.8rem); }
+}
+@media (max-height: 600px) {
+    :root { --slide-padding: clamp(0.6rem, 2.5vw, 1.5rem); --title-size: clamp(1.15rem, 4vw, 2.2rem); --body-size: clamp(0.7rem, 1.2vw, 0.95rem); }
+    .nav-dots { display: none; } .slide::before { opacity: 0.5; }
+}
+@media (max-width: 600px) {
+    :root { --title-size: clamp(1.4rem, 7vw, 2.4rem); }
+    .two-col, .num-grid { grid-template-columns: 1fr !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.15s !important; }
+    html { scroll-behavior: auto; }
+}
+
+@media print {
+    html { scroll-snap-type: none; scroll-behavior: auto; height: auto; overflow: visible; }
+    body { height: auto; overflow: visible; }
+    .slide {
+        width: 100%; height: auto; min-height: 100vh;
+        overflow: visible; scroll-snap-align: unset;
+        page-break-after: always; break-after: page;
+        page-break-inside: avoid; break-inside: avoid;
+    }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+    .slide-content { max-height: none; overflow: visible; }
+    .progress-bar, .nav-dots { display: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    .slide::before { opacity: 0.4; }
+}
+
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--accent); z-index: 100; transition: width 0.25s ease-out; }
+.nav-dots { position: fixed; right: clamp(0.6rem, 1.5vw, 1.25rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+.nav-dots button { width: 9px; height: 9px; border-radius: 0; border: 1.5px solid var(--ink); background: var(--bg); padding: 0; cursor: pointer; transition: all 0.2s ease; }
+.nav-dots button.active { background: var(--accent); border-color: var(--accent); }
+
+.slide-header {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: clamp(1rem, 2.8vh, 1.8rem) var(--slide-padding);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: var(--small-size); color: var(--ink-mute);
+    font-family: var(--font-mono); letter-spacing: 0.1em; z-index: 10; text-transform: uppercase;
+}
+.section-marker { color: var(--accent); font-weight: 500; }
+.section-marker::before { content: ''; display: inline-block; width: 10px; height: 10px; background: var(--accent); margin-right: 0.6em; vertical-align: -1px; }
+.slide-num { font-variant-numeric: tabular-nums; }
+
+.title-slide { justify-content: flex-end; padding: 0; }
+.title-slide::before { opacity: 1; }
+.title-slide .hero { position: relative; z-index: 3; padding: var(--slide-padding); padding-right: clamp(2rem, 10vw, 8rem); padding-bottom: clamp(2rem, 6vh, 4rem); max-width: 92vw; }
+.title-slide::after { content: ''; position: absolute; top: 0; left: 0; width: clamp(80px, 18vw, 260px); height: clamp(8px, 1.2vw, 16px); background: var(--accent); z-index: 2; }
+.title-num { position: absolute; top: clamp(2.5rem, 8vh, 5rem); right: clamp(1.5rem, 5vw, 4rem); font-family: var(--font-display); font-weight: 900; font-size: clamp(5rem, 20vw, 17rem); line-height: 0.8; color: var(--bg); -webkit-text-stroke: 2px var(--ink); letter-spacing: -0.06em; z-index: 1; opacity: 0.85; user-select: none; }
+.section-badge { display: inline-block; font-family: var(--font-mono); font-size: clamp(0.75rem, 1.3vw, 1rem); letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); padding: 0.3em 0 0.3em 1em; border-left: 4px solid var(--accent); margin-bottom: clamp(1rem, 2.5vh, 1.75rem); }
+.hero h1 { font-family: var(--font-display); font-weight: 900; font-size: var(--title-size); line-height: 0.95; letter-spacing: -0.04em; color: var(--ink); margin-bottom: clamp(0.75rem, 2vh, 1.25rem); text-transform: uppercase; }
+.hero h1 .accent { color: var(--accent); }
+.tagline { font-family: var(--font-display); font-weight: 500; font-size: clamp(1rem, 2.2vw, 1.5rem); color: var(--ink-soft); letter-spacing: -0.01em; margin-bottom: clamp(1.25rem, 3vh, 2rem); max-width: 48ch; }
+.meta { font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.12em; text-transform: uppercase; }
+.meta span + span::before { content: '  /  '; color: var(--rule); }
+
+h2.slide-title { font-family: var(--font-display); font-weight: 900; font-size: var(--h2-size); letter-spacing: -0.03em; line-height: 1.05; color: var(--ink); text-transform: uppercase; margin-bottom: clamp(0.5rem, 1.5vh, 1rem); }
+h2.slide-title .hl { color: var(--accent); }
+h2.slide-title .sub { font-weight: 500; font-size: 0.55em; color: var(--ink-soft); text-transform: none; letter-spacing: 0; display: block; margin-top: 0.3em; }
+h2.slide-title::after { content: ''; display: block; width: clamp(40px, 5vw, 60px); height: 4px; background: var(--accent); margin-top: clamp(0.5rem, 1.5vh, 1rem); }
+.slide-subtitle { font-size: var(--body-size); color: var(--ink-soft); margin-bottom: clamp(0.75rem, 2vh, 1.5rem); max-width: 64ch; font-weight: 500; }
+.big-quote { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.2rem, 3vw, 2.2rem); line-height: 1.15; letter-spacing: -0.025em; color: var(--ink); max-width: 34ch; text-transform: uppercase; }
+.big-quote .hl { color: var(--accent); }
+
+.label-strip { font-family: var(--font-mono); font-size: var(--small-size); color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.8em; font-weight: 700; }
+.label-strip::before { content: '—'; margin-right: 0.6em; color: var(--accent); font-family: var(--font-display); }
+
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--duration) var(--ease-out), transform var(--duration) var(--ease-out); }
+.slide.visible .reveal { opacity: 1; transform: translateY(0); }
+.reveal:nth-child(1) { transition-delay: 0.05s; }
+.reveal:nth-child(2) { transition-delay: 0.15s; }
+.reveal:nth-child(3) { transition-delay: 0.25s; }
+.reveal:nth-child(4) { transition-delay: 0.35s; }
+.reveal:nth-child(5) { transition-delay: 0.45s; }
+.reveal:nth-child(6) { transition-delay: 0.55s; }
+.reveal:nth-child(7) { transition-delay: 0.65s; }
+.slide.visible [data-i="1"] { transition-delay: 0.10s; }
+.slide.visible [data-i="2"] { transition-delay: 0.18s; }
+.slide.visible [data-i="3"] { transition-delay: 0.26s; }
+.slide.visible [data-i="4"] { transition-delay: 0.34s; }
+.slide.visible [data-i="5"] { transition-delay: 0.42s; }
+.slide.visible [data-i="6"] { transition-delay: 0.50s; }
+.slide.visible [data-i="7"] { transition-delay: 0.58s; }
+
+.bullet-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.7rem, 1.7vh, 1.2rem); max-width: 72ch; }
+.bullet-list li { font-size: var(--body-size); line-height: 1.5; padding-left: 3em; position: relative; color: var(--ink); font-weight: 500; }
+.bullet-list li::before { content: attr(data-n); position: absolute; left: 0; top: 0; color: var(--accent); font-family: var(--font-display); font-weight: 800; font-size: 0.95em; letter-spacing: 0.05em; }
+.bullet-list li.check::before { content: ''; width: 12px; height: 12px; background: var(--accent); top: 0.45em; left: 0.2em; }
+.bullet-list li b { color: var(--ink); font-weight: 700; }
+.bullet-list li .muted { color: var(--ink-mute); font-weight: 400; }
+
+.num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); }
+.num-item { border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: clamp(1rem, 2.2vw, 1.6rem); background: var(--bg); position: relative; min-height: 130px; display: flex; flex-direction: column; gap: 0.4em; }
+.num-item .n { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.8rem, 3.5vw, 2.8rem); color: var(--accent); line-height: 0.9; letter-spacing: -0.03em; }
+.num-item h3 { font-family: var(--font-display); font-weight: 800; font-size: var(--h3-size); text-transform: uppercase; letter-spacing: -0.01em; color: var(--ink); }
+.num-item p { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.4; font-weight: 500; }
+.num-item.accent { background: var(--accent); }
+.num-item.accent .n { color: var(--bg); }
+.num-item.accent h3 { color: var(--bg); }
+.num-item.accent p { color: var(--bg); opacity: 0.95; }
+.num-item .sub { color: var(--ink-mute); font-weight: 400; font-size: 0.78em; text-transform: none; letter-spacing: 0; margin-left: 0.4em; }
+
+.slide-table { width: 100%; border-collapse: collapse; font-size: var(--body-size); background: var(--bg); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+.slide-table th, .slide-table td { padding: clamp(0.5rem, 1.2vh, 0.9rem) clamp(0.6rem, 1.2vw, 1.1rem); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; font-weight: 500; }
+.slide-table th { background: var(--ink); color: var(--bg); font-weight: 700; font-family: var(--font-display); font-size: var(--small-size); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: none; }
+.slide-table th.hl { background: var(--accent); }
+.slide-table tr:last-child td { border-bottom: none; }
+.slide-table td b { color: var(--ink); font-weight: 800; }
+.slide-table td.hl { color: var(--accent); font-weight: 700; }
+.slide-table td.row-h { background: #fafafa; font-weight: 700; }
+.slide-table caption { caption-side: bottom; padding-top: 0.8em; font-size: var(--small-size); color: var(--ink-mute); text-align: left; font-style: italic; }
+.slide-table.compact th, .slide-table.compact td { padding: clamp(0.4rem, 1vh, 0.7rem) clamp(0.5rem, 1vw, 0.9rem); font-size: clamp(0.7rem, 1.1vw, 0.85rem); }
+.slide-table.tight th, .slide-table.tight td { padding: clamp(0.45rem, 1vh, 0.7rem) clamp(0.5rem, 1vw, 0.9rem); font-size: clamp(0.7rem, 1.1vw, 0.85rem); line-height: 1.5; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(0.6rem, 1.5vw, 1.2rem); width: 100%; }
+.two-col.col-2-3 { grid-template-columns: 2fr 3fr; }
+.two-col.col-3-2 { grid-template-columns: 3fr 2fr; }
+.col-card { background: var(--bg); border: 2px solid var(--ink); padding: clamp(0.9rem, 2vw, 1.4rem); display: flex; flex-direction: column; gap: 0.5em; }
+.col-card.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.col-card.accent h3 { color: var(--bg); }
+.col-card.accent ul li { color: var(--bg); }
+.col-card.accent ul li::before { background: var(--bg); }
+.col-card.accent ul li b { color: var(--bg); }
+.col-card.muted { background: #fafafa; }
+.col-card h3 { font-family: var(--font-display); font-weight: 800; font-size: var(--h3-size); text-transform: uppercase; letter-spacing: -0.01em; margin-bottom: 0.3em; }
+.col-card h3 .sub { color: var(--ink-mute); font-weight: 400; font-size: 0.7em; margin-left: 0.5em; text-transform: none; }
+.col-card.accent h3 .sub { color: var(--bg); opacity: 0.8; }
+.col-card .quote { font-style: italic; color: var(--ink-soft); margin-bottom: 0.4em; line-height: 1.45; font-size: 0.95em; }
+.col-card.accent .quote { color: var(--bg); }
+.col-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.45em; }
+.col-card ul li { font-size: var(--body-size); color: var(--ink-soft); padding-left: 1.2em; position: relative; line-height: 1.5; font-weight: 500; }
+.col-card ul li::before { content: ''; position: absolute; left: 0; top: 0.55em; width: 8px; height: 2px; background: var(--ink); }
+.col-card ul li b { color: var(--ink); font-weight: 800; }
+
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: clamp(0.6rem, 1.5vw, 1.2rem); width: 100%; }
+@media (max-width: 800px) { .three-col { grid-template-columns: 1fr; } }
+
+.callout { background: var(--bg); border-left: 4px solid var(--accent); padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1rem, 2.5vw, 1.5rem); font-size: var(--body-size); line-height: 1.5; color: var(--ink-soft); max-width: 78ch; font-weight: 500; }
+.callout.ink { border-left-color: var(--ink); }
+.callout b { color: var(--ink); font-weight: 800; }
+.callout .tag { display: inline-block; font-family: var(--font-mono); font-size: 0.78em; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 0.5em; text-transform: uppercase; font-weight: 700; }
+.callout.ink .tag { color: var(--ink); }
+
+.chip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 0.55rem 0.75rem; }
+.chip { display: flex; gap: 0.7em; align-items: flex-start; font-size: var(--body-size); line-height: 1.4; color: var(--ink); font-weight: 500; padding: 0.6em 0.8em; background: var(--bg); border: 2px solid var(--ink); }
+.chip::before { content: ''; display: inline-block; width: 12px; height: 12px; flex-shrink: 0; border: 2px solid var(--ink); background: var(--bg); margin-top: 0.2em; }
+.chip.accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.chip.accent::before { background: var(--bg); border-color: var(--bg); }
+
+.source { margin-top: clamp(0.6rem, 1.5vh, 1rem); font-size: var(--small-size); color: var(--ink-mute); font-family: var(--font-mono); letter-spacing: 0.05em; }
+.source::before { content: '→  '; color: var(--accent); }
+
+.diagram-box { display: flex; justify-content: center; align-items: center; width: 100%; max-height: 62vh; margin: clamp(0.5rem, 1.5vh, 1rem) 0; }
+.diagram-box svg { max-width: 100%; max-height: 58vh; width: auto; height: auto; }
+
+.formula { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: clamp(0.5rem, 1.5vw, 1rem); font-family: var(--font-display); font-weight: 900; font-size: clamp(1.3rem, 3.5vw, 2.6rem); letter-spacing: -0.025em; text-transform: uppercase; margin: clamp(1rem, 3vh, 2rem) 0; }
+.formula .op { color: var(--ink-mute); font-weight: 500; }
+.formula .term { background: var(--bg); border: 3px solid var(--accent); padding: 0.3em 0.7em; color: var(--accent); }
+.formula .term.ink { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.formula .eq { color: var(--ink); }
+
+.mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); margin-top: clamp(0.8rem, 2vh, 1.3rem); max-width: 960px; }
+.mini-item { border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: clamp(0.8rem, 1.8vw, 1.2rem); background: var(--bg); text-align: center; }
+.mini-item .k { font-family: var(--font-display); font-weight: 900; font-size: clamp(1rem, 2vw, 1.4rem); color: var(--accent); text-transform: uppercase; letter-spacing: -0.01em; }
+.mini-item .d { font-size: var(--small-size); color: var(--ink-soft); margin-top: 0.4em; font-weight: 500; }
+
+.principle {
+    display: inline-block;
+    font-family: var(--font-mono); font-weight: 700;
+    font-size: 0.78em; letter-spacing: 0.05em;
+    background: var(--accent); color: var(--bg);
+    padding: 0.12em 0.55em; margin: 0 0.1em;
+    border-radius: 0;
+    vertical-align: 1px;
+}
+.principle.ink { background: var(--ink); }
+
+.end-slide { justify-content: center; align-items: center; position: relative; }
+.end-slide::after { content: ''; position: absolute; bottom: 0; right: 0; width: clamp(80px, 18vw, 260px); height: clamp(8px, 1.2vw, 16px); background: var(--accent); z-index: 2; }
+
+.chapter-divider .slide-content { justify-content: center; align-items: flex-start; }
+.chapter-divider::before { opacity: 0.5; }
+.chapter-divider::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: clamp(60px, 14vw, 200px); height: clamp(8px, 1.2vw, 16px);
+    background: var(--accent); z-index: 2;
+}
+.chapter-marker { font-family: var(--font-mono); font-size: clamp(0.8rem, 1.3vw, 1rem); letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: clamp(0.4rem, 1vh, 0.7rem); }
+.chapter-bignum { font-family: var(--font-display); font-weight: 900; font-size: clamp(3.5rem, 12vw, 9rem); line-height: 0.85; letter-spacing: -0.06em; color: var(--ink); margin-bottom: clamp(0.4rem, 1.2vh, 0.8rem); }
+.chapter-bignum .of { color: var(--ink-mute); font-size: 0.45em; margin-left: 0.2em; letter-spacing: 0; }
+.chapter-title { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.65rem, 4vw, 2.8rem); line-height: 1.0; letter-spacing: -0.03em; color: var(--ink); text-transform: uppercase; margin-bottom: clamp(0.6rem, 1.6vh, 1rem); }
+.chapter-title .hl { color: var(--accent); }
+.chapter-title::after { content: ''; display: block; width: clamp(40px, 5vw, 60px); height: 4px; background: var(--accent); margin-top: clamp(0.5rem, 1.5vh, 1rem); }
+.chapter-questions { max-width: 70ch; margin-bottom: clamp(0.8rem, 2vh, 1.3rem); }
+.chapter-q-label { font-family: var(--font-mono); font-size: var(--small-size); color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.6em; font-weight: 700; }
+.chapter-questions ul { list-style: none; display: flex; flex-direction: column; gap: clamp(0.45rem, 1.1vh, 0.75rem); }
+.chapter-questions ul li { font-size: var(--body-size); line-height: 1.5; padding-left: 1.6em; position: relative; color: var(--ink-soft); font-weight: 500; }
+.chapter-questions ul li::before { content: '·'; position: absolute; left: 0.4em; top: -0.1em; color: var(--accent); font-size: 1.4em; font-weight: 900; }
+.chapter-questions ul li b { color: var(--ink); font-weight: 700; }
+.chapter-bridge { font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.05em; border-top: 1px solid var(--rule); padding-top: clamp(0.5rem, 1.3vh, 0.8rem); max-width: 70ch; line-height: 1.7; }
+.chapter-bridge b { color: var(--ink); font-weight: 700; }
+.chapter-bridge .accent { color: var(--accent); font-weight: 700; }
+.chapter-bridge .line { display: block; margin-top: 0.2em; }
+
+.deck-roadmap { display: flex; flex-wrap: wrap; gap: 0.4em; align-items: center; font-family: var(--font-mono); font-size: clamp(0.68rem, 1vw, 0.85rem); margin-top: clamp(0.7rem, 1.6vh, 1rem); max-width: 88ch; }
+.deck-roadmap .step { padding: 0.3em 0.65em; border: 1.5px solid var(--ink); background: var(--bg); color: var(--ink); font-weight: 600; letter-spacing: 0.02em; }
+.deck-roadmap .step.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.deck-roadmap .arrow { color: var(--ink-mute); font-weight: 700; }
+
+.proto-stack { display: flex; flex-direction: column; border: 2px solid var(--ink); max-width: 940px; margin-top: clamp(0.6rem, 1.5vh, 1rem); }
+.proto-stack .layer { display: grid; grid-template-columns: 140px 1fr; border-bottom: 2px solid var(--ink); }
+.proto-stack .layer:last-child { border-bottom: none; }
+.proto-stack .layer .lh { padding: clamp(0.7rem, 1.6vw, 1rem); background: var(--ink); color: var(--bg); display: flex; flex-direction: column; gap: 0.15em; justify-content: center; }
+.proto-stack .layer.accent .lh { background: var(--accent); }
+.proto-stack .layer .lh .lvl { font-family: var(--font-display); font-weight: 900; font-size: clamp(0.85rem, 1.3vw, 1.05rem); text-transform: uppercase; letter-spacing: 0.05em; }
+.proto-stack .layer .lh .name { font-family: var(--font-display); font-weight: 900; font-size: clamp(1rem, 1.8vw, 1.4rem); letter-spacing: -0.02em; }
+.proto-stack .layer .body { padding: clamp(0.7rem, 1.6vw, 1rem) clamp(0.9rem, 2vw, 1.3rem); font-size: var(--body-size); color: var(--ink-soft); display: flex; flex-direction: column; gap: 0.3em; line-height: 1.5; }
+.proto-stack .layer .body b { color: var(--ink); font-weight: 700; }
+
+.module-flow { display: flex; flex-direction: column; gap: clamp(0.4rem, 1vh, 0.7rem); align-items: center; max-width: 720px; margin: 0 auto; }
+.module-flow .mod { width: 100%; border: 2px solid var(--ink); padding: clamp(0.7rem, 1.6vw, 1.1rem) clamp(0.9rem, 2vw, 1.4rem); background: var(--bg); display: grid; grid-template-columns: 130px 1fr; gap: clamp(0.7rem, 1.6vw, 1.2rem); align-items: center; }
+.module-flow .mod.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.module-flow .mod.muted { background: #fafafa; }
+.module-flow .mod .ml { font-family: var(--font-display); font-weight: 900; font-size: clamp(1rem, 1.9vw, 1.35rem); text-transform: uppercase; letter-spacing: -0.01em; }
+.module-flow .mod.accent .ml { color: var(--bg); }
+.module-flow .mod .mb { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.5; }
+.module-flow .mod.accent .mb { color: var(--bg); }
+.module-flow .arrow-d { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.2rem, 2vw, 1.7rem); color: var(--ink-mute); line-height: 1; }
+
+.pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; justify-content: flex-start; }
+.pipeline .pnode { padding: 0.55em 0.8em; border: 2px solid var(--ink); background: var(--bg); font-family: var(--font-display); font-weight: 800; font-size: clamp(0.78rem, 1.2vw, 0.95rem); letter-spacing: -0.01em; text-transform: uppercase; }
+.pipeline .pnode.accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.pipeline .pnode.muted { background: #fafafa; color: var(--ink-mute); }
+.pipeline .parrow { color: var(--ink-mute); font-weight: 800; font-family: var(--font-display); }
+
+.triple-line .line { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.1rem, 2.8vw, 2rem); text-transform: uppercase; letter-spacing: -0.02em; line-height: 1.3; }
+.triple-line .line .c1 { color: var(--ink); }
+.triple-line .line .c2 { color: var(--ink); }
+.triple-line .line .c3 { color: var(--accent); }
+
+.break-slide { justify-content: center; align-items: center; }
+.break-slide .slide-content { justify-content: center; align-items: flex-start; max-width: 1100px; margin: 0 auto; }
+.break-slide .big-time { font-family: var(--font-display); font-weight: 900; font-size: clamp(4rem, 14vw, 11rem); line-height: 0.85; letter-spacing: -0.06em; color: var(--ink); }
+.break-slide .big-time .accent { color: var(--accent); }
+.break-slide .break-sub { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.2rem, 3vw, 2rem); color: var(--ink); margin-top: 0.4em; text-transform: uppercase; letter-spacing: -0.02em; }
+.break-slide .break-next { font-family: var(--font-mono); font-size: var(--small-size); color: var(--accent); letter-spacing: 0.1em; margin-top: 1em; text-transform: uppercase; font-weight: 700; }
+
+.matrix-table td.cell-a { background: var(--accent-soft); color: var(--ink); font-weight: 700; text-align: center; }
+.matrix-table td.cell-b { background: var(--orange-soft); color: var(--ink); font-weight: 700; text-align: center; }
+.matrix-table td.cell-c { background: #ffd4d4; color: var(--ink); font-weight: 700; text-align: center; }
+.matrix-table td.cell-empty { background: #fafafa; color: var(--ink-mute); text-align: center; }
+.matrix-table .axis-y { background: var(--ink); color: var(--bg); writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; vertical-align: middle; font-family: var(--font-display); font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.matrix-legend { display: flex; flex-wrap: wrap; gap: 0.6em; margin-top: 0.7em; font-size: var(--small-size); color: var(--ink-soft); font-family: var(--font-mono); letter-spacing: 0.04em; }
+.matrix-legend .lg { display: inline-flex; align-items: center; gap: 0.4em; }
+.matrix-legend .sw { width: 14px; height: 14px; display: inline-block; border: 1px solid var(--ink); }
+.matrix-legend .sw.a { background: var(--accent-soft); }
+.matrix-legend .sw.b { background: var(--orange-soft); }
+.matrix-legend .sw.c { background: #ffd4d4; }
+
+/* Inline definition for acronyms / difficult terms */
+.def { font-family: var(--font-mono); font-size: 0.78em; color: var(--ink-mute); font-weight: 500; letter-spacing: 0; font-style: normal; margin-left: 0.25em; }
+.def::before { content: "("; }
+.def::after  { content: ")"; }
+.col-card.accent .def { color: var(--bg); opacity: 0.85; }
+.num-item.accent .def { color: var(--bg); opacity: 0.85; }
+.stat-cell.accent .def { color: var(--bg); opacity: 0.85; }
+
+/* --------- v2 Helper classes for line breaking + segmented layouts --------- */
+
+/* Sub-line: indented secondary line under a bold key */
+.sub-line {
+    display: block;
+    color: var(--ink-mute);
+    font-weight: 400;
+    font-size: 0.92em;
+    margin-top: 0.22em;
+    line-height: 1.5;
+}
+.col-card.accent .sub-line { color: var(--bg); opacity: 0.85; }
+
+/* Vertical stack with comfortable rhythm */
+.stack-md > * + * { margin-top: clamp(0.55rem, 1.3vh, 0.9rem); }
+.stack-sm > * + * { margin-top: 0.3em; }
+
+/* Lead key + value list: aligned grid */
+.kv-list { display: flex; flex-direction: column; gap: clamp(0.4rem, 1vh, 0.7rem); }
+.kv-row {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.4em 0.9em;
+    align-items: baseline;
+    font-size: var(--body-size);
+    line-height: 1.5;
+}
+.kv-row .k {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.95em;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.kv-row .v { color: var(--ink-soft); font-weight: 500; }
+.kv-row .v b { color: var(--ink); }
+
+/* Entry line: model/case entry with name + when + key fact, single line */
+.entry-list { display: flex; flex-direction: column; }
+.entry {
+    display: grid;
+    grid-template-columns: minmax(160px, 0.9fr) auto 1fr;
+    gap: 0.4em 1em;
+    align-items: baseline;
+    padding: clamp(0.5rem, 1.2vh, 0.8rem) 0;
+    border-bottom: 1px solid var(--rule);
+}
+.entry:last-child { border-bottom: none; }
+.entry .name { font-family: var(--font-display); font-weight: 800; font-size: var(--body-size); letter-spacing: -0.01em; color: var(--ink); }
+.entry .when { font-family: var(--font-mono); color: var(--ink-mute); font-size: 0.82em; }
+.entry .what { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.45; font-weight: 500; }
+.col-card.accent .entry { border-bottom-color: rgba(255,255,255,0.3); }
+.col-card.accent .entry .name { color: var(--bg); }
+.col-card.accent .entry .when { color: var(--bg); opacity: 0.7; }
+.col-card.accent .entry .what { color: var(--bg); }
+
+/* Case card for failure cases (Slide 33) */
+.case-card {
+    border: 2px solid var(--ink);
+    padding: clamp(0.9rem, 1.8vw, 1.3rem);
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    gap: 0.45em;
+    min-height: 200px;
+}
+.case-card.accent { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.case-card .case-head {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--h3-size);
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+}
+.case-card .case-head .when { color: var(--ink-mute); font-weight: 400; font-size: 0.7em; text-transform: none; letter-spacing: 0; margin-left: 0.4em; }
+.case-card.accent .case-head .when { color: var(--bg); opacity: 0.75; }
+.case-card .case-fact { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.5; font-weight: 500; }
+.case-card.accent .case-fact { color: var(--bg); }
+.case-card .case-tag {
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-top: 0.2em;
+}
+.case-card.accent .case-tag { color: var(--bg); opacity: 0.85; }
+.case-card .case-prin { font-size: var(--body-size); color: var(--ink); font-weight: 500; }
+.case-card.accent .case-prin { color: var(--bg); }
+
+/* Compact Korean case list (Slide 38) */
+.kr-list { display: flex; flex-direction: column; }
+.kr-item {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 0.4em 0.9em;
+    align-items: baseline;
+    padding: clamp(0.45rem, 1.1vh, 0.7rem) 0;
+    border-bottom: 1px solid rgba(255,255,255,0.25);
+}
+.kr-item:last-child { border-bottom: none; }
+.kr-item .co {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: var(--body-size);
+    color: var(--bg);
+    text-transform: uppercase;
+}
+.kr-item .what {
+    font-size: var(--body-size);
+    color: var(--bg);
+    line-height: 1.5;
+    font-weight: 500;
+}
+.kr-item .what .when {
+    color: var(--bg); opacity: 0.7;
+    font-family: var(--font-mono); font-size: 0.82em;
+    margin-left: 0.3em;
+}
+
+/* Stat row (Slide 5) */
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0; border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); }
+.stat-cell { border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: clamp(0.95rem, 2vw, 1.3rem); background: var(--bg); display: flex; flex-direction: column; gap: 0.4em; }
+.stat-cell.accent { background: var(--accent); color: var(--bg); }
+.stat-cell .num { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.6rem, 3.2vw, 2.6rem); line-height: 0.95; letter-spacing: -0.04em; color: var(--accent); }
+.stat-cell.accent .num { color: var(--bg); }
+.stat-cell .lbl { font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+.stat-cell.accent .lbl { color: var(--bg); opacity: 0.85; }
+.stat-cell .meaning { font-size: var(--body-size); color: var(--ink-soft); line-height: 1.5; font-weight: 500; }
+.stat-cell.accent .meaning { color: var(--bg); opacity: 0.95; }
+.stat-cell .src { font-family: var(--font-mono); font-size: 0.7em; color: var(--ink-mute); margin-top: 0.3em; }
+.stat-cell.accent .src { color: var(--bg); opacity: 0.75; }
+
+/* Mini-callout: compact, single thought */
+.mini-callout {
+    background: #fafafa;
+    border-left: 3px solid var(--ink-mute);
+    padding: 0.6em 0.9em;
+    font-size: 0.92em;
+    color: var(--ink-soft);
+    line-height: 1.5;
+}
+.mini-callout b { color: var(--ink); }
+
+/* Trend mini map */
+.trend-map {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0;
+    border-top: 1.5px solid var(--ink);
+    border-left: 1.5px solid var(--ink);
+    margin-top: clamp(0.6rem, 1.5vh, 1rem);
+}
+.trend-map .t {
+    border-right: 1.5px solid var(--ink);
+    border-bottom: 1.5px solid var(--ink);
+    padding: clamp(0.6rem, 1.4vw, 1rem);
+    display: flex; flex-direction: column; gap: 0.25em;
+    background: var(--bg);
+}
+.trend-map .t .id {
+    font-family: var(--font-display); font-weight: 900;
+    color: var(--accent); font-size: 0.9em;
+    letter-spacing: 0.05em;
+}
+.trend-map .t .name {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: var(--body-size); text-transform: uppercase; letter-spacing: -0.01em;
+}
+.trend-map .t .where {
+    font-family: var(--font-mono); font-size: 0.78em;
+    color: var(--ink-mute); letter-spacing: 0.04em;
+}
+
+/* Plain dash list (no marker, just hanging indent + tight rhythm) */
+.dash-list { list-style: none; display: flex; flex-direction: column; gap: 0.4em; }
+.dash-list li {
+    font-size: var(--body-size); line-height: 1.5;
+    padding-left: 1em; position: relative;
+    color: var(--ink-soft); font-weight: 500;
+}
+.dash-list li::before { content: '—'; position: absolute; left: 0; color: var(--ink-mute); font-weight: 700; }
+.dash-list li b { color: var(--ink); font-weight: 700; }
+.col-card.accent .dash-list li { color: var(--bg); }
+.col-card.accent .dash-list li::before { color: var(--bg); opacity: 0.7; }
+.col-card.accent .dash-list li b { color: var(--bg); }
+
+/* Reduce label-strip presence — kept for chapter dividers and key slides only */
+.label-strip.subtle { color: var(--ink-mute); font-weight: 600; }
+.label-strip.subtle::before { color: var(--ink-mute); }
+
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+
+<!-- ===== 01 · Title ===== -->
+<section class="slide title-slide" data-title="표지">
+    <div class="title-num reveal">00</div>
+    <div class="hero">
+        <div class="section-badge reveal">아키텍트를 위한 AI 에이전트 강의 · 90분</div>
+        <h1 class="reveal">AI Agent<br><span class="accent">아키텍처</span></h1>
+        <p class="tagline reveal">에이전트가 무엇이고<br>무엇을 고려해 설계해야 하는가</p>
+        <div class="meta reveal"><span>AI Service Architect</span><span>2026.05</span><span>90 minutes</span></div>
+    </div>
+</section>
+
+
+<!-- ===== 02 · 학습 목표 + 로드맵 ===== -->
+<section class="slide" data-title="학습 목표">
+    <header class="slide-header"><span class="section-marker">INTRO</span><span class="slide-num">02 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">강의 <span class="hl">목표 다섯 가지</span></h2>
+        <ul class="bullet-list reveal" data-i="2" style="margin-top: clamp(0.9rem, 2.2vh, 1.4rem);">
+            <li class="check">
+                <b>아키텍트의 역할 변화</b>
+                <span class="sub-line">대체가 아닌 확장 — 책임 영역이 어디까지 늘어나는가</span>
+            </li>
+            <li class="check">
+                <b>챗봇 · Workflow · Agent의 경계</b>
+                <span class="sub-line">Loop · Tools · State · Policy 네 요소가 판정 기준</span>
+            </li>
+            <li class="check">
+                <b>에이전트의 기술 구성 요소</b>
+                <span class="sub-line">Loop · Tools · MCP · State · Memory · 추론 패턴 · Multi-Agent</span>
+            </li>
+            <li class="check">
+                <b>설계할 때의 트레이드오프</b>
+                <span class="sub-line">여섯 원칙 — 자율성 · 비용 · 복구 · 안전 · 관측 · 표준</span>
+            </li>
+            <li class="check">
+                <b>앞으로의 방향</b>
+                <span class="sub-line">기술 · 규제 · 조직 세 축의 도입 우선순위</span>
+            </li>
+        </ul>
+        <div class="deck-roadmap reveal" data-i="3">
+            <span class="step">Open</span><span class="arrow">→</span>
+            <span class="step">Ch1 역할</span><span class="arrow">→</span>
+            <span class="step">Ch2 정의</span><span class="arrow">→</span>
+            <span class="step accent">Ch3 기술 요소</span><span class="arrow">→</span>
+            <span class="step muted">☕ Break</span><span class="arrow">→</span>
+            <span class="step accent">Ch4 설계 6원칙</span><span class="arrow">→</span>
+            <span class="step">Ch5 진화</span><span class="arrow">→</span>
+            <span class="step">Close</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 03 · Ch1 divider ===== -->
+<section class="slide chapter-divider" data-title="Chapter 1">
+    <header class="slide-header"><span class="section-marker">AGENT</span><span class="slide-num">03 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 1 / 5</div>
+        <div class="chapter-bignum reveal" data-i="2">01<span class="of">/5</span></div>
+        <h2 class="chapter-title reveal" data-i="3">아키텍트의 <span class="hl">역할과 중요성</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>개발 활동이 점점 AI를 거쳐 흐른다는 말은 어떤 수치로 증명되는가</li>
+                <li>그래서 아키텍트의 일은 줄어드는가, 늘어나는가</li>
+                <li>지금 어떤 흐름이 그 변화를 밀어붙이고 있는가</li>
+                <li>어떤 책임 영역이 새로 생기는가 — 6원칙 미리보기</li>
+            </ul>
+        </div>
+        <div class="chapter-bridge reveal" data-i="5">
+            <span class="line"><b>이번 장.</b> 개발 사이클의 변화 → 통계와 사례 → 흐름 두 가지 → 6원칙 맛보기</span>
+            <span class="line"><span class="accent">다음 장.</span> 그러면 에이전트란 무엇인가</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 04 · 개발 사이클의 변화 ===== -->
+<section class="slide" data-title="1.1 개발 사이클의 변화">
+    <header class="slide-header"><span class="section-marker">CH1 · 1.1</span><span class="slide-num">04 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal"><span class="hl">AI를 거쳐 흐르는</span> 개발 사이클<span class="sub">코딩 · 리뷰 · 테스트 · 문서 · 운영, 모든 단계에 AI 도구가 들어왔다</span></h2>
+        <div class="two-col col-3-2 reveal" data-i="2" style="margin-top: clamp(0.8rem, 1.8vh, 1.3rem); align-items: stretch;">
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div>
+                    <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6em;">이전 — 사람이 모든 단계를 수행</div>
+                    <div class="pipeline">
+                        <span class="pnode muted">요구</span><span class="parrow">→</span>
+                        <span class="pnode muted">코딩</span><span class="parrow">→</span>
+                        <span class="pnode muted">리뷰</span><span class="parrow">→</span>
+                        <span class="pnode muted">테스트</span><span class="parrow">→</span>
+                        <span class="pnode muted">배포</span><span class="parrow">→</span>
+                        <span class="pnode muted">운영</span>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6em;">지금 — AI가 1차로 수행, 사람이 검증·승인</div>
+                    <div class="pipeline">
+                        <span class="pnode">요구</span><span class="parrow">→</span>
+                        <span class="pnode accent">코딩</span><span class="parrow">→</span>
+                        <span class="pnode accent">리뷰</span><span class="parrow">→</span>
+                        <span class="pnode accent">테스트</span><span class="parrow">→</span>
+                        <span class="pnode accent">배포</span><span class="parrow">→</span>
+                        <span class="pnode accent">운영</span>
+                    </div>
+                </div>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>새로 봐야 할 것</h3>
+                    <ul class="dash-list">
+                        <li>각 단계 어디에서 AI를 받아들일 것인가</li>
+                        <li>사람이 어디에서 검증할 것인가 (HITL)</li>
+                        <li>전 단계의 추적·감사·롤백을 어떻게 보장할 것인가</li>
+                    </ul>
+                </div>
+                <div class="col-card muted">
+                    <h3>대체가 아닌 확장</h3>
+                    <ul class="dash-list">
+                        <li>가용성 · SLA · 보안 · 거버넌스는 그대로</li>
+                        <li>그 위에 여섯 가지 책임이 추가 (슬라이드 08)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 05 · 정량 통계 5 ===== -->
+<section class="slide" data-title="1.2 정량 통계">
+    <header class="slide-header"><span class="section-marker">CH1 · 1.2</span><span class="slide-num">05 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">숫자로 보는 <span class="hl">2025–2026 변화</span><span class="sub">출처는 각 셀 하단 — 강사가 한 셀씩 짚으며 설명</span></h2>
+        <div class="stat-row reveal" data-i="2" style="margin-top: clamp(0.9rem, 2vh, 1.3rem);">
+            <div class="stat-cell">
+                <div class="lbl">개발자 채택과 신뢰</div>
+                <div class="num">84% / 29%</div>
+                <div class="meaning">
+                    AI 도구를 쓰거나 쓸 계획인 개발자는 84% (전년 76%)
+                    <span class="sub-line">그러나 정확성을 신뢰한다는 비율은 29%로 하락 (전년 40%) — 도구 신뢰도 격차가 벌어진다</span>
+                </div>
+                <div class="src">Stack Overflow Developer Survey 2025 · 약 49,000명</div>
+            </div>
+            <div class="stat-cell">
+                <div class="lbl">Cursor 성장</div>
+                <div class="num">ARR $2B</div>
+                <div class="meaning">
+                    2026년 초 연간경상수익(ARR) 20억 달러 돌파
+                    <span class="sub-line">Fortune 500의 70%가 사용 — IDE 시장이 빠르게 재편된다</span>
+                </div>
+                <div class="src">Inc.com 2026-02 · Cursor 자체 발표 (Gartner MQ 2026)</div>
+            </div>
+            <div class="stat-cell">
+                <div class="lbl">에이전트가 만든 PR</div>
+                <div class="num">100만+</div>
+                <div class="meaning">
+                    GitHub의 코딩 에이전트가 6개월간 누적 100만+ PR 생성
+                    <span class="sub-line">신규 GitHub 가입자의 80%가 첫 주 안에 Copilot을 사용</span>
+                </div>
+                <div class="src">GitHub Octoverse 2025-10</div>
+            </div>
+            <div class="stat-cell accent">
+                <div class="lbl">Anthropic 사내</div>
+                <div class="num">~100%</div>
+                <div class="meaning">
+                    "Claude가 Claude를 쓴다" — Mike Krieger (CPO)
+                    <span class="sub-line">사내 새 코드의 사실상 100%가 AI 작성, 엔지니어는 검증과 방향 설정에 집중</span>
+                </div>
+                <div class="src">Cisco AI Summit 2026-02 · Anthropic 자체 발표</div>
+            </div>
+            <div class="stat-cell">
+                <div class="lbl">투자와 가치 격차</div>
+                <div class="num">94% / 5%</div>
+                <div class="meaning">
+                    CEO의 94%는 단기 ROI 없어도 2026년 AI 투자 지속 (BCG AI Radar)
+                    <span class="sub-line">그러나 가치를 스케일까지 끌어낸 회사는 5%뿐, 60%는 "유의미한 효과 없음"</span>
+                </div>
+                <div class="src">BCG AI Radar 2026-01-15 · BCG AI Value 2025-09</div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <b>한 줄 정리.</b> 도입은 이제 차별점이 아니다. 진짜 과제는 워크플로를 다시 짜서 영업이익까지 움직이는 아키텍처를 만드는 일.
+            <span class="sub-line">Gartner 2026 — 2026년 말까지 엔터프라이즈 앱의 40%가 task-specific 에이전트를 탑재 (2025년 5% 미만), 동시에 에이전트 프로젝트의 40%는 2027년까지 폐기될 전망</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 06 · 운영 사례 3 ===== -->
+<section class="slide" data-title="1.3 운영 사례">
+    <header class="slide-header"><span class="section-marker">CH1 · 1.3</span><span class="slide-num">06 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal"><span class="hl">개발 프로세스를 다시 짜는</span> 사례들</h2>
+        <div class="three-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>Anthropic 사내 <span class="sub">2025-12 자체 발표</span></h3>
+                <p class="quote">자체 개발 프로세스에 Claude를 1년간 적용한 결과</p>
+                <ul class="dash-list">
+                    <li>업무 Claude 사용 비중 <b>28% → 약 60%</b> (1년)</li>
+                    <li>직원이 보고한 평균 생산성 향상 <b>약 50%</b> (전년 약 20%)</li>
+                    <li>전체 직무의 <b>49%</b>가 작업의 1/4 이상을 Claude로 수행</li>
+                </ul>
+                <div class="source">anthropic.com/research/how-ai-is-transforming-work-at-anthropic</div>
+            </div>
+            <div class="col-card">
+                <h3>Cognition Devin <span class="sub">2025-12 1주년 보고서</span></h3>
+                <p class="quote">자율 SWE 에이전트가 PR을 만들고 사람이 머지</p>
+                <ul class="dash-list">
+                    <li>PR 머지율 <b>34% → 67%</b> (1년 만)</li>
+                    <li>도입사 — Goldman Sachs · Santander · Nubank · Citi · Mercedes-Benz</li>
+                    <li>2026-05 Series D $1B, 밸류에이션 $26B</li>
+                </ul>
+                <div class="source">cognition.ai/blog/devin-annual-performance-review-2025</div>
+            </div>
+            <div class="col-card accent">
+                <h3>SK텔레콤 사내 <span class="sub" style="opacity:0.8;">2026-03 ~ 2026-05</span></h3>
+                <p class="quote" style="color:var(--bg);">'AI Native' 선언과 '1인 1 AI 에이전트' 전사 캠페인</p>
+                <ul class="dash-list">
+                    <li>MWC26에서 'AI Native' 전략 공식 선언 <b>2026-03-01</b></li>
+                    <li>'1인 1 AI 에이전트' 로드맵, 직원이 직접 자기 업무용 AI 제작</li>
+                    <li>사내 AI 해커톤 — 54팀 115명, <b>비개발자 50%</b> 참여</li>
+                </ul>
+                <div class="source" style="color:var(--bg); opacity:0.85;">SK Telecom Newsroom 2026-03 · Sedaily 2026-05-22</div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <b>세 사례의 공통점.</b> 도구를 갈아 끼운 게 아니라 개발 프로세스 자체를 다시 짰다.
+            <span class="sub-line">아키텍트가 가장 먼저 정해야 할 것 — 어떤 작업을 어느 에이전트에게 맡길지의 라우팅 정책</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 07 · 두 가지 흐름 (07+08 합침) ===== -->
+<section class="slide" data-title="1.4 두 가지 흐름">
+    <header class="slide-header"><span class="section-marker">CH1 · 1.4</span><span class="slide-num">07 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">두 가지 흐름 — <span class="hl">파이프라인화 + 팀원화</span><span class="sub">모델 성능 평준화 시대, 경쟁력은 파이프라인 설계와 역할 재정의에서 갈린다</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div>
+                    <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6em;">이전 — 거대 모델 한 대에 의존</div>
+                    <div class="pipeline">
+                        <span class="pnode muted">사용자</span><span class="parrow">→</span>
+                        <span class="pnode" style="border-color: var(--ink-mute); color: var(--ink-mute);">거대 LLM</span><span class="parrow">→</span>
+                        <span class="pnode muted">결과</span>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.6em;">지금 — 특화 단계가 협력</div>
+                    <div class="pipeline">
+                        <span class="pnode">사용자</span><span class="parrow">→</span>
+                        <span class="pnode accent">분류</span><span class="parrow">→</span>
+                        <span class="pnode accent">검색</span><span class="parrow">→</span>
+                        <span class="pnode accent">추론</span><span class="parrow">→</span>
+                        <span class="pnode accent">검증</span><span class="parrow">→</span>
+                        <span class="pnode accent">작성</span><span class="parrow">→</span>
+                        <span class="pnode">결과</span>
+                    </div>
+                </div>
+                <div class="callout ink" style="font-size: var(--small-size); margin-top: 0.4em;">
+                    <span class="tag">설계 시사점</span>
+                    경쟁력은 단계 분담과 파이프라인 설계에서 갈린다. 책임 경계가 흐려지면 단일이 더 안전하다.
+                </div>
+            </div>
+            <div class="three-col" style="grid-template-columns: 1fr; gap: clamp(0.4rem, 1vh, 0.7rem);">
+                <div class="col-card muted">
+                    <h3>이전 — 도구로서의 AI</h3>
+                    <ul class="dash-list">
+                        <li>사람이 직접 수행, AI는 보조 도구</li>
+                        <li>일회성 상호작용이 기본</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>지금 — 팀원으로서의 AI</h3>
+                    <ul class="dash-list">
+                        <li>환경을 인지하고 먼저 작업을 조율한다</li>
+                        <li>독립된 시스템으로 결과를 도출</li>
+                    </ul>
+                </div>
+                <div class="col-card accent">
+                    <h3>그래서 사람은</h3>
+                    <ul class="dash-list">
+                        <li>목표·제약·검증 기준을 정의하는 조율자</li>
+                        <li>아키텍트의 책임도 한 단계 위로 옮겨간다</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 08 · 6원칙 미리보기 + 4개 흐름 맵 ===== -->
+<section class="slide" data-title="1.5 6원칙 미리보기">
+    <header class="slide-header"><span class="section-marker">CH1 · 1.5</span><span class="slide-num">08 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">아키텍트의 <span class="hl">새로운 책임 여섯 가지</span><span class="sub">자세한 내용은 4장 — 여기서는 이름만</span></h2>
+        <div class="num-grid" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>자율성과 통제</h3>
+                <p>위험한 작업은 사람이 먼저 본다 (HITL)</p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>비용과 종료</h3>
+                <p>단계·토큰·시간에 한도를 걸어 폭주를 차단</p>
+            </div>
+            <div class="num-item reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>상태와 복구</h3>
+                <p>중간에 끊겨도 처음부터 다시 하지 않음</p>
+            </div>
+            <div class="num-item reveal" data-i="4">
+                <div class="n">04</div>
+                <h3>도구 권한과 안전</h3>
+                <p>화이트리스트·격리·인젝션 방어를 다층으로</p>
+            </div>
+            <div class="num-item reveal" data-i="5">
+                <div class="n">05</div>
+                <h3>관측과 재현</h3>
+                <p>실패 1건을 5분 안에 재현할 수 있어야 한다</p>
+            </div>
+            <div class="num-item accent reveal" data-i="6">
+                <div class="n">06</div>
+                <h3>표준과 상호운용</h3>
+                <p>5년 뒤 모델·벤더 교체를 가정하고 만듦</p>
+            </div>
+        </div>
+        <div class="reveal" data-i="7" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.4em;">강의 전체에 흐르는 네 가지 큰 흐름</div>
+            <div class="trend-map">
+                <div class="t"><div class="id">01</div><div class="name">에이전트 워크플로</div><div class="where">Ch1 · Ch5</div></div>
+                <div class="t"><div class="id">02</div><div class="name">개방형 표준 (MCP·A2A)</div><div class="where">Ch3 · Ch5</div></div>
+                <div class="t"><div class="id">03</div><div class="name">도구에서 팀원으로</div><div class="where">Ch1 · Ch5</div></div>
+                <div class="t"><div class="id">04</div><div class="name">엔터프라이즈 견고성</div><div class="where">Ch4 · Ch5</div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 09 · Ch2 divider ===== -->
+<section class="slide chapter-divider" data-title="Chapter 2">
+    <header class="slide-header"><span class="section-marker">AGENT</span><span class="slide-num">09 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 2 / 5</div>
+        <div class="chapter-bignum reveal" data-i="2">02<span class="of">/5</span></div>
+        <h2 class="chapter-title reveal" data-i="3">에이전트의 <span class="hl">정의 · 역할 · 필요성</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>학계와 산업은 에이전트를 각각 어떻게 정의하는가</li>
+                <li>Workflow와 Agent는 어떻게 다른가, 어디까지가 스펙트럼인가</li>
+                <li>챗봇과 에이전트의 운영상 차이는 무엇인가</li>
+                <li>운영 관점에서 무엇을 갖춰야 에이전트라 부를 수 있는가</li>
+            </ul>
+        </div>
+        <div class="chapter-bridge reveal" data-i="5">
+            <span class="line"><b>이전 장.</b> 아키텍트 역할이 왜 확장되는가</span>
+            <span class="line"><b>이번 장.</b> 그 책임이 적용되는 대상 — 에이전트 자체의 정의</span>
+            <span class="line"><span class="accent">다음 장.</span> 그 에이전트를 무엇으로 만드는가</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 10 · 권위 정의 4 ===== -->
+<section class="slide" data-title="2.1 권위 정의">
+    <header class="slide-header"><span class="section-marker">CH2 · 2.1</span><span class="slide-num">10 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">에이전트의 <span class="hl">정의 — 네 출처</span><span class="sub">학계 1, 주요 AI 회사 3 — 표현은 달라도 같은 곳을 가리킨다</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.5vh, 1rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>Russell &amp; Norvig <span class="sub">학계 고전</span></h3>
+                <p class="quote">환경을 인지하고 그에 작용하는 모든 것</p>
+                <ul class="dash-list">
+                    <li>인지에서 행동으로 가는 함수</li>
+                    <li>합리적 에이전트 = 성능 척도 기준 최선의 결과</li>
+                </ul>
+                <div class="source">AI: A Modern Approach 4판, 2020</div>
+            </div>
+            <div class="col-card accent">
+                <h3>Anthropic <span class="sub">2024-12</span></h3>
+                <p class="quote">LLM이 자신의 프로세스와 도구 사용을 동적으로 지휘하는 시스템</p>
+                <ul class="dash-list">
+                    <li><b>Workflow</b> — 사전에 짠 코드 경로를 따름</li>
+                    <li><b>Agent</b> — LLM이 흐름을 그때그때 결정</li>
+                </ul>
+                <div class="source" style="color:var(--bg); opacity:0.85;">Building effective agents</div>
+            </div>
+            <div class="col-card">
+                <h3>OpenAI <span class="sub">2025-03</span></h3>
+                <p class="quote">사용자를 대신해 다단계 작업을 자율적으로 수행하는 시스템</p>
+                <ul class="dash-list">
+                    <li>Agents SDK · Responses API와 함께 정식화됨</li>
+                    <li>구성 요소 — 모델 · 도구 · 지시</li>
+                </ul>
+                <div class="source">A Practical Guide to Building Agents</div>
+            </div>
+            <div class="col-card">
+                <h3>Google <span class="sub">2024-09</span></h3>
+                <p class="quote">세상을 관찰하고 도구로 행동하여 목표를 달성하는 시스템</p>
+                <ul class="dash-list">
+                    <li>3계층 — 모델 · 도구 · 오케스트레이션</li>
+                </ul>
+                <div class="source">Wiesinger 외, Google Agents 백서</div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem);">
+            <b>네 출처가 공통으로 말하는 세 가지.</b> 환경과 상호작용 · 자율적 의사결정 · 다단계 처리.
+            <span class="sub-line">다음 슬라이드의 운영 4요소(Loop·Tools·State·Policy)와 자연스럽게 맞물림</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 11 · Workflow vs Agent ===== -->
+<section class="slide" data-title="2.2 Workflow vs Agent">
+    <header class="slide-header"><span class="section-marker">CH2 · 2.2</span><span class="slide-num">11 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">Workflow와 Agent는 <span class="hl">자율성의 스펙트럼</span><span class="sub">"단순함에서 시작하고, 필요할 때만 자율성을 높인다" — Anthropic</span></h2>
+        <div class="two-col col-3-2 reveal" data-i="2" style="margin-top: clamp(0.8rem, 1.8vh, 1.3rem); align-items: stretch;">
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="formula" style="margin: 0; font-size: clamp(0.95rem, 2vw, 1.4rem);">
+                    <span class="term ink" style="padding: 0.5em 0.7em;">Augmented<br>LLM</span>
+                    <span class="op">→</span>
+                    <span class="term" style="background: var(--orange-soft); border-color: var(--orange); color: var(--ink); padding: 0.5em 0.7em;">Workflow<br><span style="font-size:0.6em; font-weight:500;">사전 정의 경로</span></span>
+                    <span class="op">→</span>
+                    <span class="term" style="padding: 0.5em 0.7em;">Agent<br><span style="font-size:0.6em; font-weight:500;">동적 결정</span></span>
+                </div>
+                <div class="source" style="margin-top: 0.4em;">Anthropic · Building effective agents (2024-12)</div>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column;">
+                <div class="col-card muted">
+                    <h3>Workflow가 맞는 자리</h3>
+                    <ul class="dash-list">
+                        <li>작업이 명확해서 단계로 분해할 수 있다</li>
+                        <li>예측 가능성과 일관성이 가치</li>
+                        <li>비용과 지연을 우선 통제</li>
+                    </ul>
+                </div>
+                <div class="col-card accent">
+                    <h3>Agent가 맞는 자리</h3>
+                    <ul class="dash-list">
+                        <li>문제가 열린 형태이고 단계 수를 미리 알기 어렵다</li>
+                        <li>고정된 경로로 하드코딩이 되지 않음</li>
+                        <li>안전선을 미리 깔아둘 수 있다</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>다만 잊지 말 것</h3>
+                    <ul class="dash-list">
+                        <li>에이전트는 비용·지연·오류 누적이 따라옴</li>
+                        <li>"LLM 한 번 호출 + 검색"으로 충분한 경우가 많다</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 12 · 에이전트를 쓰지 말아야 할 때 (신규) ===== -->
+<section class="slide" data-title="2.3 쓰지 말아야 할 때">
+    <header class="slide-header"><span class="section-marker">CH2 · 2.3</span><span class="slide-num">12 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">에이전트를 <span class="hl">쓰지 말아야 할 때</span><span class="sub">네 가지 중 하나라도 해당하면 Workflow나 규칙 기반 자동화가 더 적합하다</span></h2>
+        <div class="num-grid reveal" data-i="2" style="margin-top: clamp(0.8rem, 1.8vh, 1.3rem); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="num-item">
+                <div class="n">01</div>
+                <h3>결정론적 결과가 필수</h3>
+                <p>금융 정산, 규제 보고처럼 동일 입력에 항상 동일 출력이 보장되어야 하는 작업</p>
+            </div>
+            <div class="num-item">
+                <div class="n">02</div>
+                <h3>실패 비용이 극도로 높고 롤백 불가</h3>
+                <p>한 번의 오류가 회복 불가능한 손실로 이어지는 작업 — 에이전트의 비결정성이 치명적</p>
+            </div>
+            <div class="num-item">
+                <div class="n">03</div>
+                <h3>즉각 응답이 필수</h3>
+                <p>사용자가 지연을 허용하지 않는 작업 — 에이전트의 다단계 루프는 지연을 수반한다</p>
+            </div>
+            <div class="num-item accent">
+                <div class="n">04</div>
+                <h3>데이터가 극도로 민감</h3>
+                <p>LLM에 노출 자체가 불가능한 데이터를 다루는 작업 — 규칙 기반 처리가 유일한 선택</p>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <b>판단 기준.</b> 이 네 가지 중 하나라도 해당하면 Workflow나 규칙 기반 자동화가 더 적합하다.
+            <span class="sub-line">에이전트 도입은 목적이 아니라 수단 — "왜 에이전트여야 하는가"를 먼저 답해야 한다</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 13 · 챗봇 vs Agent ===== -->
+<section class="slide" data-title="2.4 챗봇 vs Agent">
+    <header class="slide-header"><span class="section-marker">CH2 · 2.4</span><span class="slide-num">13 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">챗봇과 에이전트는 <span class="hl">운영에서 무엇이 다른가</span></h2>
+        <table class="slide-table reveal" data-i="2" style="margin-top: clamp(1rem, 2.2vh, 1.5rem);">
+            <thead>
+                <tr>
+                    <th style="width: 18%;"></th>
+                    <th>챗봇 — 단일 LLM 호출</th>
+                    <th class="hl">에이전트</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><b>입출력</b></td>
+                    <td>요청 한 번에 응답하고 끝</td>
+                    <td>종료 조건이 충족될 때까지 <b>루프를 회전</b></td>
+                </tr>
+                <tr>
+                    <td><b>외부 세계</b></td>
+                    <td>도구 호출 없음</td>
+                    <td><b>도구를 호출해</b> 외부 시스템에 닿음</td>
+                </tr>
+                <tr>
+                    <td><b>상태</b></td>
+                    <td>대화 컨텍스트만 유지</td>
+                    <td>실행 상태를 <b>명시적으로 영속화</b></td>
+                </tr>
+                <tr>
+                    <td><b>다음 행동</b></td>
+                    <td>사용자가 지시</td>
+                    <td>에이전트가 <b>스스로 결정</b></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(1rem, 2.2vh, 1.4rem);">
+            <b>판정 기준.</b> 네 가지가 모두 갖춰져야 운영 가능한 에이전트. 하나라도 빠지면 그게 곧 다음 설계 과제.
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 14 · 4요소 + 6원칙 매핑 + 비즈니스 시나리오 ===== -->
+<section class="slide" data-title="2.5 4요소 + 적용 시나리오">
+    <header class="slide-header"><span class="section-marker">CH2 · 2.5</span><span class="slide-num">14 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">에이전트 = <span class="hl">Loop + Tools + State + Policy</span></h2>
+        <div class="formula reveal" data-i="2" style="margin: clamp(0.7rem, 1.6vh, 1.1rem) auto;">
+            <span class="eq">Agent</span>
+            <span class="op">=</span>
+            <span class="term">Loop</span>
+            <span class="op">+</span>
+            <span class="term">Tools</span>
+            <span class="op">+</span>
+            <span class="term">State</span>
+            <span class="op">+</span>
+            <span class="term">Policy</span>
+        </div>
+        <div class="two-col col-2-3 reveal" data-i="3" style="margin-top: clamp(0.6rem, 1.4vh, 1rem); align-items: stretch;">
+            <div class="mini-grid" style="grid-template-columns: 1fr 1fr; margin: 0;">
+                <div class="mini-item"><div class="k">Loop</div><div class="d">제어와 흐름</div></div>
+                <div class="mini-item"><div class="k">Tools</div><div class="d">행동 수단</div></div>
+                <div class="mini-item"><div class="k">State</div><div class="d">상태와 기억</div></div>
+                <div class="mini-item"><div class="k">Policy</div><div class="d">제약과 안전선</div></div>
+            </div>
+            <div class="col-card">
+                <h3>실제 비즈니스에서는</h3>
+                <ul class="dash-list">
+                    <li><b>고객 서비스 자동화</b><span class="sub-line">1차 분류와 자율 처리, 복잡한 케이스만 사람에게 넘김</span></li>
+                    <li><b>코드 개발 자동화</b><span class="sub-line">Claude Code · Devin 같은 IDE 다단계 + PR 자동 생성</span></li>
+                    <li><b>운영 자동화 (SRE)</b><span class="sub-line">장애 분류 · 진단 · 1차 대응 액션</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="4" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <b>4요소와 6원칙은 이렇게 연결된다.</b> Loop는 비용·종료, Tools는 권한·안전, State는 복구, Policy는 자율성·통제와 직접 맞물린다. 관측과 표준은 네 요소 전체에 걸쳐 있다.
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 15 · Ch3 divider ===== -->
+<section class="slide chapter-divider" data-title="Chapter 3">
+    <header class="slide-header"><span class="section-marker">AGENT</span><span class="slide-num">15 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 3 / 5</div>
+        <div class="chapter-bignum reveal" data-i="2">03<span class="of">/5</span></div>
+        <h2 class="chapter-title reveal" data-i="3">에이전트를 <span class="hl">무엇으로 만드는가</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문</div>
+            <ul>
+                <li>한 장의 그림으로 에이전트 기술 스택을 어떻게 정리하는가</li>
+                <li>도구는 어떻게 호출되고, MCP는 무엇을 표준화하는가</li>
+                <li>추론 패턴 세 가지는 언제 어떤 것을 고르는가</li>
+                <li>State와 Memory는 어떻게 다른가, Multi-Agent는 언제 쓰는가</li>
+            </ul>
+        </div>
+        <div class="chapter-bridge reveal" data-i="5">
+            <span class="line"><b>이전 장.</b> 에이전트는 무엇인가</span>
+            <span class="line"><b>이번 장.</b> 그것을 어떤 부품으로 만드는가 — 각 부품에 6원칙 라벨이 붙음</span>
+            <span class="line"><span class="accent">다음 장.</span> 그 부품들 위에 어떻게 안전한 시스템을 설계하는가</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 16 · Agent 기술 스택 한 장 ===== -->
+<section class="slide" data-title="3.1 기술 스택">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.1</span><span class="slide-num">16 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">에이전트 기술 스택을 <span class="hl">한 그림으로</span><span class="sub">중심에 Loop, 주변에 Tools · State · Memory · Policy, 옆으로 Multi-Agent</span></h2>
+        <div class="diagram-box reveal" data-i="2">
+            <svg viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agent technology stack">
+                <style>
+                    .sb{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                    .sa{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                    .so{fill:#ffe8d9;stroke:#f58220;stroke-width:2}
+                    .si{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                    .st{font-family:'Archivo',sans-serif;font-weight:900;fill:#0a0a0a;font-size:14px;text-transform:uppercase;letter-spacing:0.04em;text-anchor:middle}
+                    .sts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:10.5px;font-weight:500;text-anchor:middle}
+                    .stw{fill:#fff}
+                    .stm{font-family:'JetBrains Mono',monospace;fill:#8a8a8a;font-size:9.5px;text-anchor:middle;letter-spacing:0.05em}
+                    .ln{fill:none;stroke:#0a0a0a;stroke-width:1.5}
+                    .lna{fill:none;stroke:#ff3300;stroke-width:2;stroke-dasharray:5 3}
+                </style>
+                <defs><marker id="hd1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+
+                <rect class="sa" x="330" y="170" width="240" height="140" rx="0"/>
+                <text class="st" x="450" y="200" fill="#ff3300">Loop</text>
+                <text class="sts" x="450" y="220">사고 → 행동 → 관찰</text>
+                <line class="lna" x1="345" y1="232" x2="555" y2="232"/>
+                <text class="stm" x="450" y="252">ReAct · Plan-Execute</text>
+                <text class="stm" x="450" y="266">Reasoning native</text>
+                <text class="stm" x="450" y="300" fill="#ff3300">비용 · 종료</text>
+
+                <rect class="sb" x="330" y="50" width="240" height="90"/>
+                <text class="st" x="450" y="80">Memory</text>
+                <text class="sts" x="450" y="100">Short / Episodic</text>
+                <text class="sts" x="450" y="114">Semantic / Procedural</text>
+                <text class="stm" x="450" y="132" fill="#ff3300">관측 · 재현</text>
+
+                <rect class="so" x="60" y="170" width="220" height="140"/>
+                <text class="st" x="170" y="200">Tools</text>
+                <text class="sts" x="170" y="220">Function Calling</text>
+                <text class="sts" x="170" y="236">Registry · Executor</text>
+                <text class="sts" x="170" y="252">Formatter · Policy</text>
+                <text class="sts" x="170" y="272" fill="#ff3300">+ MCP 표준</text>
+                <text class="stm" x="170" y="294" fill="#ff3300">안전 · 표준</text>
+
+                <rect class="sb" x="620" y="170" width="220" height="140"/>
+                <text class="st" x="730" y="200">State</text>
+                <text class="sts" x="730" y="220">Checkpointer</text>
+                <text class="sts" x="730" y="236">직렬화 가능 스키마</text>
+                <text class="sts" x="730" y="252">중단·재개 (long-running)</text>
+                <text class="sts" x="730" y="272">≈ Event Sourcing snapshot</text>
+                <text class="stm" x="730" y="294" fill="#ff3300">복구</text>
+
+                <rect class="si" x="330" y="340" width="240" height="90"/>
+                <text class="st stw" x="450" y="370">Policy</text>
+                <text class="sts" x="450" y="390" fill="#fff">HITL · Allowlist</text>
+                <text class="sts" x="450" y="404" fill="#fff">Budget · Sandbox</text>
+                <text class="stm" x="450" y="422" fill="#ffe5de">자율·통제 · 권한</text>
+
+                <line class="ln" x1="450" y1="140" x2="450" y2="170" marker-end="url(#hd1)"/>
+                <line class="ln" x1="280" y1="240" x2="330" y2="240" marker-end="url(#hd1)"/>
+                <line class="ln" x1="620" y1="240" x2="570" y2="240" marker-end="url(#hd1)" stroke-dasharray="4 3"/>
+                <line class="ln" x1="450" y1="310" x2="450" y2="340" marker-end="url(#hd1)"/>
+
+                <rect class="sb" x="720" y="380" width="160" height="60" stroke-dasharray="5 3"/>
+                <text class="st" x="800" y="408">Multi-Agent</text>
+                <text class="sts" x="800" y="426">A2A · ACP</text>
+                <line class="lna" x1="570" y1="240" x2="720" y2="395"/>
+                <text class="stm" x="800" y="370">확장</text>
+            </svg>
+        </div>
+        <div class="callout reveal" data-i="3">
+            중심은 <b>Loop</b>. 외부와 닿는 Tools, 진행을 지키는 State, 경험을 쌓는 Memory, 안전을 거는 Policy가 그 주위에 붙는다.
+            <span class="sub-line">Multi-Agent는 같은 구조의 에이전트가 옆으로 연결될 뿐 — 새 구조가 아니라 확장</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 17 · Function Calling ===== -->
+<section class="slide" data-title="3.2 Function Calling">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.2</span><span class="slide-num">17 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">도구 호출은 <span class="hl">LLM이 결정</span><span class="sub">인자는 스키마가 검증하지만, 어느 도구를 부를지는 LLM이 description을 읽고 판단한다</span></h2>
+        <div class="two-col col-2-3 reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.4vh, 1rem); align-items: stretch;">
+            <div class="diagram-box" style="margin: 0;">
+                <svg viewBox="0 0 460 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Function calling flow">
+                    <style>
+                        .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                        .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                        .b-i{fill:#0a0a0a;stroke:#0a0a0a;stroke-width:2}
+                        .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:13px;text-transform:uppercase;letter-spacing:0.05em}
+                        .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:11px;font-weight:500}
+                        .mono{font-family:'JetBrains Mono',monospace;fill:#0a0a0a;font-size:10px;font-weight:500}
+                        .t-w{fill:#fff}
+                        .ar{fill:none;stroke:#0a0a0a;stroke-width:2}
+                    </style>
+                    <defs><marker id="fc1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0a0a0a"/></marker></defs>
+                    <rect class="b" x="50" y="20" width="360" height="50"/>
+                    <text class="t" x="80" y="42">User</text><text class="ts" x="135" y="55">"서울 날씨 알려줘"</text>
+                    <line class="ar" x1="230" y1="70" x2="230" y2="90" marker-end="url(#fc1)"/>
+
+                    <rect class="b-a" x="50" y="90" width="360" height="60"/>
+                    <text class="t" x="80" y="113">LLM</text><text class="ts" x="80" y="130">스키마 description 해석 → 호출 결정</text>
+                    <text class="mono" x="80" y="146">name="get_weather", args={city:"Seoul"}</text>
+                    <line class="ar" x1="230" y1="150" x2="230" y2="170" marker-end="url(#fc1)"/>
+
+                    <rect class="b" x="50" y="170" width="360" height="50"/>
+                    <text class="t" x="80" y="193">Schema 검증</text><text class="ts" x="200" y="206">JSON Schema · 필수/선택 인자</text>
+                    <line class="ar" x1="230" y1="220" x2="230" y2="240" marker-end="url(#fc1)"/>
+
+                    <rect class="b" x="50" y="240" width="360" height="50"/>
+                    <text class="t" x="80" y="263">외부 API</text><text class="ts" x="190" y="276">get_weather("Seoul") 실행</text>
+                    <line class="ar" x1="230" y1="290" x2="230" y2="310" marker-end="url(#fc1)"/>
+
+                    <rect class="b" x="50" y="310" width="360" height="50"/>
+                    <text class="t" x="80" y="333">결과 → LLM</text><text class="ts" x="195" y="346">"맑음, 18도" → 컨텍스트 주입</text>
+                    <line class="ar" x1="230" y1="360" x2="230" y2="380" marker-end="url(#fc1)"/>
+
+                    <rect class="b-i" x="50" y="380" width="360" height="50"/>
+                    <text class="t t-w" x="135" y="410">다음 행동 결정 (Loop)</text>
+                </svg>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>그래서 description이 곧 API 문서</h3>
+                    <ul class="dash-list">
+                        <li>LLM은 description의 의미를 읽고 도구를 고름</li>
+                        <li>스키마는 인자 모양만 검증할 뿐, 선택은 검증하지 않음</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>설계할 때 권장 <span class="sub"><span class="principle">안전</span></span></h3>
+                    <ul class="dash-list">
+                        <li>description은 충분히 길게, 호출 예시도 함께</li>
+                        <li>비슷한 도구가 있으면 <b>의미 차이를 명시</b></li>
+                        <li>도구 선택 정확도를 평가 슈트로 측정</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 18 · Tool 4 요소 (재구성) ===== -->
+<section class="slide" data-title="3.3 Tool 4 요소">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.3</span><span class="slide-num">18 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">도구는 <span class="hl">네 가지 책임으로 분리</span><span class="sub">Registry · Executor · Formatter · Policy — 변경 주기가 다르므로 합쳐 두면 안 된다</span></h2>
+        <table class="slide-table tight reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <thead>
+                <tr>
+                    <th style="width: 26%;">요소 (책임)</th>
+                    <th style="width: 32%;">선택지</th>
+                    <th style="width: 42%;">언제 무엇을 고르나</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="row-h">
+                        <b>Registry</b> <span class="principle">표준</span>
+                        <span class="sub-line">도구 스키마·설명을 LLM이 검색 가능한 형태로 노출</span>
+                    </td>
+                    <td>
+                        정적 JSON
+                        <span class="sub-line">동적 검색 (벡터·태그)</span>
+                        <span class="sub-line">MCP 자기서술</span>
+                    </td>
+                    <td>
+                        도구 20개 이하 — 정적
+                        <span class="sub-line">100개 이상이거나 부분 노출 필요 — 동적</span>
+                        <span class="sub-line">외부 벤더 · 다중 에이전트 — MCP</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>Executor</b> <span class="principle">안전</span>
+                        <span class="sub-line">실제 호출 · 재시도 · 타임아웃 · 격리 · 로깅</span>
+                    </td>
+                    <td>
+                        인프로세스
+                        <span class="sub-line">원격 RPC</span>
+                        <span class="sub-line">Sandbox (컨테이너·VM)</span>
+                    </td>
+                    <td>
+                        내부 신뢰 — 인프로세스
+                        <span class="sub-line">외부 — 원격 + 회로 차단기</span>
+                        <span class="sub-line">신뢰 불가 — Sandbox</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>Formatter</b> <span class="principle">관측</span>
+                        <span class="sub-line">결과를 LLM 후속 판단에 좋은 형태로 변환</span>
+                    </td>
+                    <td>
+                        raw 그대로
+                        <span class="sub-line">요약</span>
+                        <span class="sub-line">필드 화이트리스트</span>
+                    </td>
+                    <td>
+                        결과가 작다 — raw
+                        <span class="sub-line">크고 노이즈 있음 — 요약</span>
+                        <span class="sub-line">PII·식별자 — 화이트리스트</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h" style="background: var(--accent-soft);">
+                        <b>Policy</b> <span class="principle">자율성</span> <span class="principle">안전</span>
+                        <span class="sub-line">호출 전·중·후의 허용·차단·요율 게이트</span>
+                    </td>
+                    <td>
+                        호출 전 — 허용 목록·역할
+                        <span class="sub-line">호출 중 — 요율·비용 한도</span>
+                        <span class="sub-line">호출 후 — 출력 검증</span>
+                    </td>
+                    <td>
+                        기본 거부 후 명시 허용
+                        <span class="sub-line">고위험 — 사람 승인</span>
+                        <span class="sub-line">저위험 — 요율로 충분</span>
+                    </td>
+                </tr>
+            </tbody>
+            <caption>부재 시 신호 — Registry: 도구 잘못 선택 / Executor: 단일 도구 실패가 전체로 / Formatter: 컨텍스트 폭주 · 민감정보 노출 / Policy: 권한·비용 통제 실패</caption>
+        </table>
+    </div>
+</section>
+
+
+<!-- ===== 19 · MCP + Skills ===== -->
+<section class="slide" data-title="3.4 MCP + Skills">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.4</span><span class="slide-num">19 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">MCP가 <span class="hl">N×M을 N+M으로 단축</span><span class="sub">도구 연결 표준 (Anthropic 2024-11) — 그 위에 Skills로 워크플로 단위가 덧붙는다</span></h2>
+        <div class="two-col col-3-2 reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem); align-items: stretch;">
+            <div class="diagram-box" style="margin: 0;">
+                <svg viewBox="0 0 460 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MCP integration">
+                    <style>
+                        .b{fill:#fff;stroke:#0a0a0a;stroke-width:2}
+                        .b-a{fill:#ffe5de;stroke:#ff3300;stroke-width:2}
+                        .b-o{fill:#ffe8d9;stroke:#f58220;stroke-width:2}
+                        .t{font-family:'Archivo',sans-serif;font-weight:800;fill:#0a0a0a;font-size:11px;text-transform:uppercase;letter-spacing:0.04em}
+                        .ts{font-family:'Nunito',sans-serif;fill:#3a3a3a;font-size:10px;font-weight:600}
+                        .ar{fill:none;stroke:#999;stroke-width:1.5}
+                        .ar-a{fill:none;stroke:#ff3300;stroke-width:2}
+                        .lbl{font-family:'JetBrains Mono',monospace;fill:#8a8a8a;font-size:10px;letter-spacing:0.05em}
+                    </style>
+                    <text class="t" x="15" y="20">BEFORE — N × M 직접 통합</text>
+                    <rect class="b" x="15" y="35" width="60" height="30"/><text class="t" x="30" y="55">Agent A</text>
+                    <rect class="b" x="15" y="75" width="60" height="30"/><text class="t" x="30" y="95">Agent B</text>
+                    <rect class="b" x="15" y="115" width="60" height="30"/><text class="t" x="30" y="135">Agent C</text>
+                    <rect class="b-o" x="170" y="35" width="60" height="30"/><text class="t" x="187" y="55">Tool 1</text>
+                    <rect class="b-o" x="170" y="75" width="60" height="30"/><text class="t" x="187" y="95">Tool 2</text>
+                    <rect class="b-o" x="170" y="115" width="60" height="30"/><text class="t" x="187" y="135">Tool 3</text>
+                    <line class="ar" x1="75" y1="50" x2="170" y2="50"/><line class="ar" x1="75" y1="50" x2="170" y2="90"/><line class="ar" x1="75" y1="50" x2="170" y2="130"/>
+                    <line class="ar" x1="75" y1="90" x2="170" y2="50"/><line class="ar" x1="75" y1="90" x2="170" y2="90"/><line class="ar" x1="75" y1="90" x2="170" y2="130"/>
+                    <line class="ar" x1="75" y1="130" x2="170" y2="50"/><line class="ar" x1="75" y1="130" x2="170" y2="90"/><line class="ar" x1="75" y1="130" x2="170" y2="130"/>
+                    <text class="lbl" x="100" y="170">9 connections · 3 × 3</text>
+
+                    <text class="t" x="15" y="240" fill="#ff3300">AFTER — N + M (MCP)</text>
+                    <rect class="b" x="15" y="255" width="60" height="30"/><text class="t" x="30" y="275">Agent A</text>
+                    <rect class="b" x="15" y="295" width="60" height="30"/><text class="t" x="30" y="315">Agent B</text>
+                    <rect class="b" x="15" y="335" width="60" height="30"/><text class="t" x="30" y="355">Agent C</text>
+                    <rect class="b-a" x="170" y="285" width="100" height="50"/>
+                    <text class="t" x="195" y="310" fill="#ff3300">MCP</text>
+                    <text class="ts" x="180" y="325" fill="#ff3300">표준 인터페이스</text>
+                    <rect class="b-o" x="350" y="255" width="60" height="30"/><text class="t" x="367" y="275">Tool 1</text>
+                    <rect class="b-o" x="350" y="295" width="60" height="30"/><text class="t" x="367" y="315">Tool 2</text>
+                    <rect class="b-o" x="350" y="335" width="60" height="30"/><text class="t" x="367" y="355">Tool 3</text>
+                    <line class="ar-a" x1="75" y1="270" x2="170" y2="305"/><line class="ar-a" x1="75" y1="310" x2="170" y2="310"/><line class="ar-a" x1="75" y1="350" x2="170" y2="315"/>
+                    <line class="ar-a" x1="270" y1="305" x2="350" y2="270"/><line class="ar-a" x1="270" y1="310" x2="350" y2="310"/><line class="ar-a" x1="270" y1="315" x2="350" y2="350"/>
+                    <text class="lbl" x="120" y="380">6 connections · 3 + 3</text>
+                </svg>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>MCP — 도구 연결 표준</h3>
+                    <ul class="dash-list">
+                        <li>2024-11 Anthropic 공개, 2025-11 사양 갱신</li>
+                        <li>SDK 다운로드 월 9,700만 회 이상</li>
+                        <li>Smithery 같은 마켓플레이스에 서버 650개 이상</li>
+                        <li>2026 — Linux Foundation Agentic AI Foundation 거버넌스</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Skills — 워크플로 패키지 표준 <span class="sub">2025-12</span></h3>
+                    <ul class="dash-list">
+                        <li>MCP가 "도구 연결"이라면, Skills는 "워크플로·지식 패키지"</li>
+                        <li>Canva · Notion · Figma · Atlassian 합류</li>
+                        <li>OpenAI GPTs Store와 다른 점 — 포터블, 에이전트 런타임이 직접 호출</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 20 · 추론 3종 (재구성) ===== -->
+<section class="slide" data-title="3.5 추론 패턴">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.5</span><span class="slide-num">20 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">추론 패턴 세 가지 · <span class="hl">자율성과 비용은 비례</span><span class="sub">단순한 패턴부터 — 2026년 Reasoning native가 외부 루프를 단순하게 만드는 중</span></h2>
+        <table class="slide-table tight reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.4vh, 1rem);">
+            <thead>
+                <tr>
+                    <th style="width: 28%;">패턴 (동작)</th>
+                    <th style="width: 32%;">언제 고르나</th>
+                    <th style="width: 40%;">트레이드오프</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="row-h">
+                        <b>ReAct</b> <span style="color: var(--ink-mute); font-weight: 400; font-size:0.85em;">Yao 2022</span>
+                        <span class="sub-line">사고 → 행동 → 관찰을 한 번씩 돌며 도구와 추론을 교차</span>
+                    </td>
+                    <td>
+                        짧은 작업
+                        <span class="sub-line">도구 0~3개</span>
+                        <span class="sub-line">정보 검색</span>
+                    </td>
+                    <td>
+                        단순하고 디버깅이 쉽다
+                        <span class="sub-line">긴 작업에서 컨텍스트 폭주, 환각 누적</span>
+                        <span class="sub-line">호출 수 = 단계 수</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>Plan-and-Execute</b> <span style="color: var(--ink-mute); font-weight: 400; font-size:0.85em;">LangChain</span>
+                        <span class="sub-line">장기 목표를 분해해 단계 Executor가 처리하고 필요하면 재계획</span>
+                    </td>
+                    <td>
+                        장기·다단계 작업
+                        <span class="sub-line">코드 변경 · 연구</span>
+                    </td>
+                    <td>
+                        SLA·비용 통제, 부분 재시작 가능
+                        <span class="sub-line">재계획이 잦으면 비용 폭주</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h" style="background: var(--accent-soft);">
+                        <b>Reasoning native</b> <span style="color: var(--ink-mute); font-weight: 400; font-size:0.85em;">o3 / Adaptive Thinking</span>
+                        <span class="sub-line">모델 자체가 내부 추론, 외부에는 도구 호출만 노출</span>
+                    </td>
+                    <td>
+                        고난도 추론
+                        <span class="sub-line">수학 · 법률 · 복합 분석</span>
+                    </td>
+                    <td>
+                        외부 루프가 단순해지고 정답률이 오른다
+                        <span class="sub-line">추론 토큰 비용 매우 큼, 디버깅 어려움</span>
+                    </td>
+                </tr>
+            </tbody>
+            <caption>2026-05 기준, Anthropic Adaptive Thinking · OpenAI o-series · Google thinkingLevel 등으로 Reasoning이 모든 모델의 기본 파라미터로 흡수되는 중.</caption>
+        </table>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <b>선택 기준.</b> 짧고 단순하면 ReAct, 길고 복잡하면 Plan-and-Execute, 고난도 추론이면 Reasoning native.
+            <span class="sub-line">실무에서는 ReAct로 시작해서 필요할 때만 복잡도를 올린다</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 21 · State + Memory ===== -->
+<section class="slide" data-title="3.6 State + Memory">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.6</span><span class="slide-num">21 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">State는 <span class="hl">현재 진행</span>, Memory는 <span class="hl">학습된 사실</span><span class="sub">두 컴포넌트는 다르다 — State <span class="principle">복구</span> · Memory <span class="principle">관측</span></span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>State — 실행 궤적의 영속화</h3>
+                <ul class="dash-list">
+                    <li>Checkpointer는 Event Sourcing의 snapshot에 가까움</li>
+                    <li>직렬화 가능한 스키마로 노드 간 컨텍스트를 공유</li>
+                    <li>긴 작업은 중단·재개가 가능해야 한다</li>
+                    <li>스냅샷 주기는 작업이 길수록 더 촘촘하게</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">저장소 선택</h3>
+                <ul class="dash-list">
+                    <li>휘발성 — Redis, in-memory</li>
+                    <li>내구성 — SQLite, Postgres, S3</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Memory — 3계층 (2026 산업 표준)</h3>
+                <ul class="dash-list">
+                    <li><b>Short-term</b><span class="sub-line">현재 대화 컨텍스트, 인메모리</span></li>
+                    <li><b>Episodic</b><span class="sub-line">과거 경험을 회상, 벡터 DB</span></li>
+                    <li><b>Semantic + Procedural</b><span class="sub-line">지식·절차, 그래프·관계형·KV</span></li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">2026 메모리 4파전</h3>
+                <ul class="dash-list">
+                    <li><b>Letta</b> (구 MemGPT, 3-tier)</li>
+                    <li><b>Zep</b> (양방향 시간 그래프)</li>
+                    <li><b>Mem0</b> (프레임워크 무관, GitHub 48k+)</li>
+                    <li><b>LangMem</b> (LangGraph 통합)</li>
+                </ul>
+                <div class="mini-callout" style="background: rgba(255,255,255,0.15); border-left-color: var(--bg); color: var(--bg); margin-top: 0.5em;">
+                    <b>시장 규모.</b> 2025년 $6.3B에서 2030년 $28.5B로 추정 (35% CAGR)
+                </div>
+            </div>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem);">
+            이제 메모리는 LLM 컨텍스트의 부속이 아니라 독립된 컴포넌트, 그리고 별도 벤더 카테고리.
+            <span class="sub-line">아키텍처 도식에서 Tool과 같은 격으로 Memory 박스를 그려야 한다</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 22 · Multi-Agent 토폴로지 ===== -->
+<section class="slide" data-title="3.7 Multi-Agent 토폴로지">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.7</span><span class="slide-num">22 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">Multi-Agent의 <span class="hl">네 가지 모양</span><span class="sub">복잡도가 올라갈수록 Multi로, 경계가 흐려지면 다시 Single로</span></h2>
+        <div class="num-grid" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+            <div class="num-item reveal" data-i="1">
+                <div class="n">01</div>
+                <h3>Single + 도구 풍부</h3>
+                <p>한 LLM이 도구와 정책을 모두 담는다. 단순하고 빠르며 디버깅이 쉽다. 사내 지식 QA, 1차 고객 응대.</p>
+            </div>
+            <div class="num-item reveal" data-i="2">
+                <div class="n">02</div>
+                <h3>Supervisor (라우터)</h3>
+                <p>Supervisor가 전문 에이전트에 분배. 분기가 명확하고 SLA를 통제하기 쉬움. CrewAI의 기본 철학.</p>
+            </div>
+            <div class="num-item reveal" data-i="3">
+                <div class="n">03</div>
+                <h3>Hierarchy (계층)</h3>
+                <p>도메인이 분리되고 위임이 깊어질 때, 재사용이 필요할 때. 부서 간 책임 경계와 비슷하다.</p>
+            </div>
+            <div class="num-item accent reveal" data-i="4">
+                <div class="n">04</div>
+                <h3>Network · Swarm</h3>
+                <p>동등한 협업이 본질일 때만. 비결정성이 강해 책임 경계가 흐려질 위험이 가장 큼.</p>
+            </div>
+        </div>
+        <div class="two-col reveal" data-i="5" style="margin-top: clamp(0.8rem, 1.8vh, 1.2rem);">
+            <div class="callout ink" style="margin: 0;">
+                <span class="tag">고를 때 기준</span>
+                <div class="kv-list" style="margin-top: 0.5em;">
+                    <div class="kv-row"><span class="k">책임 경계 명확</span><span class="v">Single 또는 Supervisor</span></div>
+                    <div class="kv-row"><span class="k">도메인 다양</span><span class="v">Hierarchy</span></div>
+                    <div class="kv-row"><span class="k">동등 협력 본질</span><span class="v">Network</span></div>
+                </div>
+            </div>
+            <div class="callout" style="margin: 0;">
+                <span class="tag">자주 보는 함정</span>
+                <ul class="dash-list" style="margin-top: 0.5em;">
+                    <li>에이전트 수 N에 따른 통신 비용 N제곱</li>
+                    <li>Trace가 에이전트 경계를 횡단해서 끊김</li>
+                    <li>Hop 수 상한을 정해두지 않으면 무한 루프</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 23 · 표준 프로토콜 3 ===== -->
+<section class="slide" data-title="3.8 표준 프로토콜">
+    <header class="slide-header"><span class="section-marker">CH3 · 3.8</span><span class="slide-num">23 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">표준 세 가지의 <span class="hl">역할 분담</span><span class="sub">MCP는 도구 연결, A2A·ACP는 에이전트 협업 — 강제 계층이 아니라 보완 관계</span></h2>
+        <div class="two-col col-3-2 reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.3vh, 0.9rem); align-items: stretch;">
+            <div>
+                <div class="proto-stack" style="margin-top: 0;">
+                    <div class="layer">
+                        <div class="lh"><div class="lvl">A2A · ACP</div><div class="name">Agent ↔ Agent</div></div>
+                        <div class="body">
+                            <div><b>A2A</b> · Google 2025-04 — Agent Card로 능력을 발견하고 인증</div>
+                            <div><b>ACP</b> · IBM·BeeAI 2025 — HTTP 기반 메시지·세션 (REST 친화)</div>
+                            <div style="color: var(--ink-mute); font-size: 0.9em;">에이전트 간 협업 — 다른 벤더·프레임워크와 통신할 때</div>
+                        </div>
+                    </div>
+                    <div class="layer accent">
+                        <div class="lh"><div class="lvl">MCP</div><div class="name">Agent ↔ Tool</div></div>
+                        <div class="body">
+                            <div><b>MCP</b> · Anthropic 2024-11 — 도구·자원 표준</div>
+                            <div>네 가지를 표준화 — Tools · Resources · Prompts · Sampling</div>
+                            <div style="color: var(--ink-mute); font-size: 0.9em;">단일 에이전트의 외부 통합 — SDK 다운로드 월 9,700만 회 이상</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>고를 때 기준</h3>
+                    <ul class="dash-list">
+                        <li>다중 벤더·외부 에이전트 협업이 필요하다 — A2A · ACP</li>
+                        <li>사내 단일 스택이라면 외부 표준은 보류해도 </li>
+                        <li>도구 표준화는 MCP부터 시작</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>거버넌스 신호</h3>
+                    <ul class="dash-list">
+                        <li>2026 Linux Foundation Agentic AI Foundation 출범</li>
+                        <li>146개 회원사 — 한 회사의 표준이 아니라 산업 표준이 됨</li>
+                        <li>지금 자체 인터페이스를 만들면 1년 뒤에 부채가 된다</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 24 · ☕ Break ===== -->
+<section class="slide break-slide chapter-divider" data-title="Coffee Break">
+    <header class="slide-header"><span class="section-marker">SESSION 1 / 2</span><span class="slide-num">24 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Session 1 End · Coffee Break</div>
+        <div class="big-time reveal" data-i="2">10<span class="accent" style="font-size: 0.7em;">'</span></div>
+        <div class="break-sub reveal" data-i="3">10 minutes</div>
+        <p class="reveal" data-i="4" style="font-size: var(--body-size); color: var(--ink-soft); margin-top: clamp(0.8rem, 1.8vh, 1.2rem); max-width: 60ch; font-weight: 500;">
+            여기까지 — <b>역할 확장 · 에이전트 정의 · 기술 요소</b>까지 끝남.
+        </p>
+        <div class="break-next reveal" data-i="5">다음 — Ch4 설계 6원칙 → Ch5 진화 방향</div>
+    </div>
+</section>
+
+
+<!-- ===== 25 · Ch4 divider ===== -->
+<section class="slide chapter-divider" data-title="Chapter 4">
+    <header class="slide-header"><span class="section-marker">AGENT</span><span class="slide-num">25 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 4 / 5</div>
+        <div class="chapter-bignum reveal" data-i="2">04<span class="of">/5</span></div>
+        <h2 class="chapter-title reveal" data-i="3">설계할 때 <span class="hl">무엇을 절충하는가</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문 — 기술·거버넌스·보안</div>
+            <ul>
+                <li>여섯 가지 원칙은 각각 무엇을 정의하고 어떤 산출물을 남기는가</li>
+                <li>각 원칙은 어떤 패턴으로 적용하고, 빠지면 어떤 신호가 보이는가</li>
+                <li>실패한 다섯 사례는 어느 원칙의 부재 때문이었나</li>
+                <li>운영 체크리스트와 HITL 매트릭스는 어떻게 만드는가</li>
+            </ul>
+        </div>
+        <div class="chapter-bridge reveal" data-i="5">
+            <span class="line"><b>이전 장.</b> 에이전트의 부품들</span>
+            <span class="line"><b>이번 장.</b> 그 부품들 위에 어떻게 안전한 시스템을 짜는가 — 강의의 가장 무거운 장</span>
+            <span class="line"><span class="accent">다음 장.</span> 5년 뒤를 보는 세 축</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 26 · 6원칙 한 장 ===== -->
+<section class="slide" data-title="4.1 6원칙 한 장">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.1</span><span class="slide-num">26 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">6원칙 — <span class="hl">진단 질문과 산출물</span></h2>
+        <table class="slide-table tight reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <thead>
+                <tr>
+                    <th style="width: 26%;">원칙 (정의)</th>
+                    <th style="width: 38%;">설계 단계에서 던질 질문</th>
+                    <th style="width: 36%;">남길 산출물</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="row-h">
+                        <b>자율성·통제</b>
+                        <span class="sub-line">자율 행위와 사람 검증의 균형</span>
+                    </td>
+                    <td>
+                        어떤 행위가 회복이 어려운가
+                        <span class="sub-line">누가 승인 권한을 가지나</span>
+                    </td>
+                    <td>
+                        HITL 진입점 매트릭스
+                        <span class="sub-line">위험도-액션 표</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>비용·종료</b>
+                        <span class="sub-line">루프 종료 보장과 요청 단위 비용 한도</span>
+                    </td>
+                    <td>
+                        최악의 입력에서
+                        <span class="sub-line">단계·토큰·시간이 어디까지 가는가</span>
+                    </td>
+                    <td>
+                        세 한도 정의 (단계·토큰·시간)
+                        <span class="sub-line">알람 SLA · 자동 차단</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>상태·복구</b>
+                        <span class="sub-line">실행 궤적의 영속화와 재시작</span>
+                    </td>
+                    <td>
+                        RPO는 얼마인가
+                        <span class="sub-line">어디서부터 재시작이 가능한가</span>
+                    </td>
+                    <td>
+                        Checkpointer
+                        <span class="sub-line">직렬화 가능한 State 스키마</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>도구 권한·안전</b>
+                        <span class="sub-line">호출의 인가·격리·입출력 검사</span>
+                    </td>
+                    <td>
+                        신뢰할 수 없는 입력은 어디서 들어오나
+                        <span class="sub-line">도구별 권한은 어떻게 다른가</span>
+                    </td>
+                    <td>
+                        허용 목록 · 다층 방어선
+                        <span class="sub-line">인젝션 회귀 슈트</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h">
+                        <b>관측·재현</b>
+                        <span class="sub-line">트레이스 진단과 평가 슈트</span>
+                    </td>
+                    <td>
+                        실패 1건을 5분 안에 재현 가능한가
+                        <span class="sub-line">회귀 슈트는 어떻게 구성하나</span>
+                    </td>
+                    <td>
+                        Trace · Span 스키마
+                        <span class="sub-line">Offline Eval + Online Canary 배포</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="row-h" style="background: var(--accent-soft);">
+                        <b>표준·상호운용</b>
+                        <span class="sub-line">인터페이스 표준화와 벤더 독립</span>
+                    </td>
+                    <td>
+                        5년 뒤 모델·벤더를 바꾸려면
+                        <span class="sub-line">무엇을 다시 짜야 하나</span>
+                    </td>
+                    <td>
+                        MCP · A2A · ACP 채택 정책
+                        <span class="sub-line">공급망 다변화 계획</span>
+                    </td>
+                </tr>
+            </tbody>
+            <caption>다음 6장에서 각 원칙을 슬라이드 한 장씩 — 적용 패턴과 부재 시 신호까지 정리.</caption>
+        </table>
+    </div>
+</section>
+
+
+<!-- ===== 27 · 자율성·통제 (HITL) ===== -->
+<section class="slide" data-title="4.2 자율성·통제">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.2</span><span class="slide-num">27 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">자율성·통제 — <span class="hl">사람이 보는 세 지점</span><span class="sub">Pre-tool · Mid-loop · Post-output — 어디서, 무엇을 보고 결정하는가</span></h2>
+        <table class="slide-table tight reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.5vh, 1rem);">
+            <thead>
+                <tr>
+                    <th style="width: 14%;">진입점</th>
+                    <th style="width: 26%;">언제 발동</th>
+                    <th style="width: 32%;">검토자에게 주는 정보</th>
+                    <th style="width: 28%;">대표 사용처</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="row-h"><b>Pre-tool</b><span class="sub-line">사전</span></td>
+                    <td>
+                        고위험 도구 직전
+                        <span class="sub-line">결제 · 발주 · DB · 외부 쓰기</span>
+                    </td>
+                    <td>
+                        호출 의도 요약 · 인자
+                        <span class="sub-line">영향 범위 · 회복 가능성</span>
+                    </td>
+                    <td>금융 거래 · 발주 · 운영 DB</td>
+                </tr>
+                <tr>
+                    <td class="row-h"><b>Mid-loop</b><span class="sub-line">중간</span></td>
+                    <td>
+                        의도 변경 · 재계획
+                        <span class="sub-line">비용 50% 도달</span>
+                    </td>
+                    <td>
+                        계획 diff · 변경 사유
+                        <span class="sub-line">누적 비용 · 진행률</span>
+                    </td>
+                    <td>장기 코드 변경 · 여행 계획 · 연구</td>
+                </tr>
+                <tr>
+                    <td class="row-h" style="background: var(--accent-soft);"><b>Post-output</b><span class="sub-line">사후</span></td>
+                    <td>
+                        고객 응답 · 외부 게시
+                        <span class="sub-line">법적 효력 직전</span>
+                    </td>
+                    <td>
+                        최종 응답 · 근거 인용
+                        <span class="sub-line">위험 신호 플래그</span>
+                    </td>
+                    <td>고객 응대 · 정책 안내 · 법률·의료</td>
+                </tr>
+            </tbody>
+            <caption>표준 액션은 Approve · Edit · Reject. 모든 결정은 트레이스 1 스팬으로 기록. SLA · 에스컬레이션 · 감사 항목 등 운영 디테일은 Runbook에서 정의.</caption>
+        </table>
+    </div>
+</section>
+
+
+<!-- ===== 28 · 비용·종료 ===== -->
+<section class="slide" data-title="4.3 비용·종료">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.3</span><span class="slide-num">28 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">비용·종료 — <span class="hl">세 한도를 함께 걸기</span><span class="sub">단계 · 토큰 · 시간 — 단일 한도만 걸면 다른 축에서 폭주</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="num-grid" style="grid-template-columns: 1fr; margin: 0; border: 2px solid var(--ink);">
+                <div class="num-item">
+                    <div class="n">01</div>
+                    <h3>단계 수 한도</h3>
+                    <p>요청당 LLM 호출 수의 상한. ReAct 루프의 무한 진행을 차단. 작업 유형별로 cap을 분리.</p>
+                </div>
+                <div class="num-item">
+                    <div class="n">02</div>
+                    <h3>토큰 예산</h3>
+                    <p>입력·출력·도구 결과를 합산한 토큰 cap. 도달 시 거절할지 격하할지 정책을 명시한다.</p>
+                </div>
+                <div class="num-item">
+                    <div class="n">03</div>
+                    <h3>시간 한도</h3>
+                    <p>요청당 총 실행 시간 cap. 사용자 응답 SLA를 지키기 위해 필요. 백그라운드 작업은 별도 cap.</p>
+                </div>
+                <div class="num-item accent">
+                    <div class="n">★</div>
+                    <h3>세 가지를 모두</h3>
+                    <p>한 가지만 걸면 다른 축에서 폭주가 일어난다. 세 한도를 동시에 설정하고 알람과 자동 차단까지.</p>
+                </div>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>운영 패턴</h3>
+                    <ul class="dash-list">
+                        <li>요청 단위 비용 회계 — 트레이스 1건이 비용 1건</li>
+                        <li>한도 도달 시 거절할지 격하할지 정책을 명시</li>
+                        <li>알람 SLA — 80%에서 경고, 100%에서 차단</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>요청 1건 비용 예시</h3>
+                    <ul class="dash-list">
+                        <li><b>단순 챗봇</b> — LLM 1회 호출, ~$0.01</li>
+                        <li><b>에이전트</b> — LLM 15회 + 도구 8회, ~$0.50–$2.00</li>
+                        <li><b>복잡 에이전트</b> — LLM 50회 + 도구 20회, ~$5–$50</li>
+                    </ul>
+                    <div class="mini-callout">
+                        <b>핵심.</b> 요청당 비용이 10–100배 차이나므로 cap이 필수
+                    </div>
+                </div>
+                <div class="callout ink" style="font-size: var(--small-size);">
+                    <span class="tag">실패 신호</span>
+                    한 요청에 LLM 50회 호출, 토큰 100만, 실행 8시간. 한 건 비용이 $50 초과하는 순간 잘못됨.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 29 · 상태·복구 ===== -->
+<section class="slide" data-title="4.4 상태·복구">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.4</span><span class="slide-num">29 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">상태·복구 — <span class="hl">처음부터 다시 시작하지 않게</span><span class="sub">Checkpointer는 Event Sourcing의 snapshot에 가깝다</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>설계 요건</h3>
+                <ul class="dash-list">
+                    <li>State는 직렬화 가능 (TypedDict · Pydantic · JSON)</li>
+                    <li>스냅샷 주기는 작업이 길수록 더 촘촘하게</li>
+                    <li>저장소는 워크로드에 맞춰 — 휘발성 vs 내구성</li>
+                    <li>RPO<span class="def">Recovery Point Objective · 허용 가능한 데이터 손실 한계</span>와 RTO<span class="def">Recovery Time Objective · 복구까지 허용 시간</span>를 먼저 정의한다</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">검증 산출물</h3>
+                <ul class="dash-list">
+                    <li>State 직렬화 스키마</li>
+                    <li>DR 시연 보고서 — 중단 후 RPO 안에 재시작 성공</li>
+                    <li>RPO · RTO<span class="def">Recovery Time Objective · 복구까지 허용 시간</span> 표</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>기존 SW 비유</h3>
+                <ul class="dash-list">
+                    <li>Event Sourcing snapshot — 사건 순차 기록 + 주기적 상태 저장</li>
+                    <li>Saga compensation — 부분 실패에 대한 역순 보상</li>
+                    <li>중단된 8시간 작업을 처음부터 다시 하면 비용·시간이 두 배</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">2026 시점 패턴</h3>
+                <ul class="dash-list">
+                    <li>State는 현재 진행 상태, Memory는 학습된 사실 — 둘은 다르다</li>
+                    <li>저장소 선택은 워크로드별 — 챗봇 / SWE Agent / 리서치</li>
+                </ul>
+                <div class="mini-callout" style="background: rgba(255,255,255,0.15); border-left-color: var(--bg); color: var(--bg); margin-top: 0.5em;">
+                    <b>실패 신호.</b> 한 도구가 실패하면 처음부터 재실행 / 항공권 결제 후 호텔 예약 실패로 부분 결제만 남음
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 30 · 도구 권한·안전 ===== -->
+<section class="slide" data-title="4.5 도구 권한·안전">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.5</span><span class="slide-num">30 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">도구 권한·안전 — <span class="hl">네 지점 다층 방어</span><span class="sub">OWASP LLM Top 10에서 Prompt Injection이 여전히 1위</span></h2>
+        <div class="two-col col-3-2 reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.4vh, 1rem); align-items: stretch;">
+            <div class="module-flow" style="max-width: none;">
+                <div class="mod">
+                    <div class="ml">① 입력 검사</div>
+                    <div class="mb">프롬프트 인젝션 방어 · 의도 분류 · 신뢰할 수 없는 입력 식별<span class="sub-line">구현 옵션: Classifier 모델 / 규칙 기반 필터 / LLM-as-judge</span></div>
+                </div>
+                <div class="arrow-d">↓</div>
+                <div class="mod">
+                    <div class="ml">② 허용 목록</div>
+                    <div class="mb">도구별 권한·빈도 제한 · 역할 기반 화이트리스트 · 기본은 거부<span class="sub-line">구현 옵션: 정적 config / RBAC / 동적 역할 기반</span></div>
+                </div>
+                <div class="arrow-d">↓</div>
+                <div class="mod">
+                    <div class="ml">③ 격리 실행</div>
+                    <div class="mb">컨테이너 · VM · WASM<span class="def">WebAssembly · 브라우저급 샌드박스</span> · 자원 쿼터 · 타임아웃<span class="sub-line">구현 옵션: Docker / Firecracker / WASM</span></div>
+                </div>
+                <div class="arrow-d">↓</div>
+                <div class="mod accent">
+                    <div class="ml">④ 출력 필터</div>
+                    <div class="mb">민감정보 차단 · PII 마스킹 · 유출 방어 · 감사 로깅<span class="sub-line">구현 옵션: PII regex + NER / 검증 LLM / 마스킹 파이프라인</span></div>
+                </div>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>위험도별 적용</h3>
+                    <ul class="dash-list">
+                        <li><b>저위험</b> (읽기 · 검색)<span class="sub-line">①과 ④</span></li>
+                        <li><b>중위험</b> (회복 가능 변경)<span class="sub-line">①~④ 중 두 단계 이상</span></li>
+                        <li><b>고위험</b> (결제 · 발주 · 삭제)<span class="sub-line">네 단계 모두 + 사람 사전 승인</span></li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>OWASP LLM Top 10 — 핵심</h3>
+                    <ul class="dash-list">
+                        <li><b>LLM01</b> Prompt Injection (여전 1위)</li>
+                        <li><b>LLM06</b> Excessive Agency (에이전트 시대 핵심)</li>
+                        <li><b>LLM07</b> System Prompt Leakage (신규)</li>
+                        <li><b>LLM08</b> Vector & Embedding Weaknesses (신규)</li>
+                    </ul>
+                </div>
+                <div class="source">OWASP LLM Top 10 2025 · Anthropic 도구 가이드</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 31 · 관측·재현 ===== -->
+<section class="slide" data-title="4.6 관측·재현">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.6</span><span class="slide-num">31 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">관측·재현 — <span class="hl">트레이스 1건이 비용·결과·재현의 단위</span><span class="sub">OpenTelemetry GenAI semantic conventions가 표준 attribute로 정착 중</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>Trace · Span 모델</h3>
+                <p style="font-size: var(--body-size); color: var(--ink-soft); margin-bottom: 0.4em;">한 번의 사용자 요청 = <b>1 Trace</b>, 그 안의 각 작업 = <b>1 Span</b></p>
+                <ul class="dash-list">
+                    <li>LLM 호출 — 모델 · 토큰 · 지연</li>
+                    <li>도구 호출 — 이름 · 인자 · 결과 · 지연</li>
+                    <li>메모리 입출력 — 계층 · 키</li>
+                    <li>사람 검토 게이트 — 승인 결과</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">에이전트 Eval이 다른 점</h3>
+                <ul class="dash-list">
+                    <li><b>일반 LLM Eval</b> — 최종 답만 평가</li>
+                    <li><b>에이전트 Eval</b> — 경로(trajectory) 평가<span class="sub-line">중간 도구 호출 순서·선택까지 검증</span></li>
+                    <li><b>3축</b> — correctness · safety · helpfulness</li>
+                    <li><b>구성</b> — golden set + adversarial set</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>Eval 슈트 — Offline + Online</h3>
+                <ul class="dash-list">
+                    <li><b>Offline Eval</b> (회귀 슈트)<span class="sub-line">출시 전 필수 — 기대 경로와 도구 호출까지 검증</span></li>
+                    <li><b>Online Canary</b> 배포<span class="sub-line">신버전을 일부 트래픽에만 노출 → 통과하면 점진 배포</span></li>
+                    <li>릴리스 게이트는 두 단계 모두 통과해야 열림</li>
+                </ul>
+                <h3 style="margin-top: 0.7em;">2026 관측 도구</h3>
+                <ul class="dash-list">
+                    <li>Langfuse · LangSmith · Phoenix · Helicone</li>
+                    <li>OpenTelemetry GenAI 표준 conventions이 정착 중</li>
+                </ul>
+                <div class="mini-callout" style="background: rgba(255,255,255,0.15); border-left-color: var(--bg); color: var(--bg); margin-top: 0.5em;">
+                    <b>실패 신호.</b> 실패 1건을 5분 안에 재현 못함 / 평가 슈트 없이 프롬프트만 수정
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 32 · 표준·상호운용 (ADR 예시) ===== -->
+<section class="slide" data-title="4.7 표준·상호운용">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.7</span><span class="slide-num">32 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">표준 채택을 <span class="hl">ADR로 남기는 방법</span><span class="sub">Architecture Decision Record — 채택 사유와 미채택 사유를 모두 기록한다</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); align-items: stretch;">
+            <div class="col-card">
+                <h3>ADR 예시 — MCP 채택 결정</h3>
+                <ul class="dash-list">
+                    <li><b>Context</b><span class="sub-line">사내 도구 30개 이상, 외부 벤더 3개 연동 필요. 각 도구마다 커스텀 어댑터를 유지하는 비용이 증가 중.</span></li>
+                    <li><b>Decision</b><span class="sub-line">MCP 채택. 사내 도구도 MCP 서버로 전환한다. 신규 도구는 MCP 서버로만 개발.</span></li>
+                    <li><b>Consequences</b><span class="sub-line">초기 마이그레이션 비용 (기존 30개 도구 전환 약 3개월) vs 장기 유지보수 절감 (연간 어댑터 유지 비용 60% 감소 예상)</span></li>
+                </ul>
+                <div class="source">ADR 형식: Context · Decision · Consequences (Michael Nygard)</div>
+            </div>
+            <div class="col-card accent">
+                <h3>ADR에 함께 기록할 것</h3>
+                <ul class="dash-list">
+                    <li><b>채택하지 않는 표준에 대한 사유도 기록</b><span class="sub-line">A2A — 현재 외부 에이전트 협업 없음, 6개월 뒤 재검토</span></li>
+                    <li><b>5년 뒤 벤더 교체를 가정</b><span class="sub-line">모델은 1~2년 주기로 교체, 표준 위에 쌓은 자산만 살아남는다</span></li>
+                    <li><b>변경 통제</b><span class="sub-line">ADR은 불변 — 결정이 바뀌면 새 ADR을 작성하고 이전 것을 Superseded로 표시</span></li>
+                </ul>
+                <div class="mini-callout" style="background: rgba(255,255,255,0.15); border-left-color: var(--bg); color: var(--bg); margin-top: 0.5em;">
+                    <b>핵심.</b> "왜 이 표준을 골랐는가"와 "왜 저 표준을 안 골랐는가"를 모두 남겨야 5년 뒤 후임이 맥락을 이해한다.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 33 · 실패 사례 5건 (재구성) ===== -->
+<section class="slide" data-title="4.8 실패 사례">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.8</span><span class="slide-num">33 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">공개된 다섯 사례 — <span class="hl">기능 결함이 아니라 원칙의 부재</span></h2>
+        <div class="num-grid" style="margin-top: clamp(0.7rem, 1.5vh, 1rem); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); border: none; gap: 0.7rem;">
+            <div class="case-card reveal" data-i="1">
+                <div class="case-head">Air Canada 챗봇 환불 <span class="when">Moffatt v Air Canada · 2024 BCCRT 149</span></div>
+                <div class="case-fact">챗봇이 존재하지 않는 사별(bereavement) 환불 정책을 안내. BC 민사재판소가 항공사에 $650 배상 명령.</div>
+                <div class="case-tag">빠진 원칙</div>
+                <div class="case-prin"><span class="principle">자율성</span> 응답 검증 부재 · <span class="principle">관측</span> 평가 부재</div>
+            </div>
+            <div class="case-card reveal" data-i="2">
+                <div class="case-head">Replit Agent DB 삭제 <span class="when">2025-07-18 · SaaStr</span></div>
+                <div class="case-fact">에이전트가 명시적 코드 동결 지시를 무시하고 운영 DB 삭제. SaaStr 창업자 Jason Lemkin 보고. 1,200+ 임원 데이터 손실.</div>
+                <div class="case-tag">빠진 원칙</div>
+                <div class="case-prin"><span class="principle">안전</span> 권한 과다 · <span class="principle">자율성</span> 사전 승인 부재</div>
+                <div class="mini-callout" style="margin-top: auto;"><b>교훈.</b> 회복이 어려운 도구는 Pre-tool 사람 승인 필수</div>
+            </div>
+            <div class="case-card reveal" data-i="3">
+                <div class="case-head">EchoLeak (M365 Copilot) <span class="when">CVE-2025-32711 · CVSS 9.3</span></div>
+                <div class="case-fact">Aim Labs 발견 · 2025-06 공개. Zero-click 인다이렉트 프롬프트 인젝션 — 이메일만으로 사내 데이터 외부 유출 가능.</div>
+                <div class="case-tag">빠진 원칙</div>
+                <div class="case-prin"><span class="principle">안전</span> 입력·출력 필터 부재</div>
+                <div class="mini-callout" style="margin-top: auto;"><b>교훈.</b> 외부 입력은 모두 인젝션 후보로 본다</div>
+            </div>
+            <div class="case-card reveal" data-i="4">
+                <div class="case-head">Bing/Sydney 일탈 발화 <span class="when">2023-02 · NYT Kevin Roose</span></div>
+                <div class="case-fact">2시간 대화 끝에 사용자에게 사랑 고백·자해 권유 등 일탈 발화. Microsoft가 대화 길이 5턴으로 즉시 제한.</div>
+                <div class="case-tag">빠진 원칙</div>
+                <div class="case-prin"><span class="principle">비용</span> 종료 조건 부재 · <span class="principle">관측</span> 안전 평가 부재</div>
+            </div>
+            <div class="case-card reveal" data-i="5">
+                <div class="case-head">NYC MyCity 위법 안내 <span class="when">2024-03 · The Markup</span></div>
+                <div class="case-fact">시 운영 챗봇(chat.nyc.gov)이 임대인에 차별 행위, 고용주에 직원 팁 가져가기 등 위법 행위 권장.</div>
+                <div class="case-tag">빠진 원칙</div>
+                <div class="case-prin"><span class="principle">관측</span> 도메인 평가 부재 · <span class="principle">자율성</span> 고위험 응답 검증 부재</div>
+            </div>
+            <div class="case-card accent reveal" data-i="6">
+                <div class="case-head">공통 패턴</div>
+                <div class="case-fact">사고 대부분이 자율성·안전 영역의 부재에서 발생한다. 관측이 있었다면 조기 발견했을 것이다. 비용 한도는 비용 폭주 사례에서 자주 누락된다.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 34 · 운영 체크리스트 + HITL 매트릭스 ===== -->
+<section class="slide" data-title="4.9 운영 체크 + HITL 매트릭스">
+    <header class="slide-header"><span class="section-marker">CH4 · 4.9</span><span class="slide-num">34 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">운영 체크리스트와 <span class="hl">HITL 매트릭스</span><span class="sub">설계 6원칙이 운영에서는 통과 기준과 증빙으로 바뀐다 — ADR에 첨부할 형식</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem); grid-template-columns: 1.4fr 1fr; gap: clamp(0.5rem, 1.2vw, 0.9rem); align-items: stretch;">
+            <table class="slide-table tight" style="margin-top: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 14%;">원칙</th>
+                        <th style="width: 40%;">통과 기준</th>
+                        <th style="width: 46%;">증빙</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td class="row-h">자율성·통제 <span class="sub-line">HITL</span></td><td>고위험 100% Pre-tool 게이트 · 폴백 정의</td><td>HITL 매트릭스 · Runbook</td></tr>
+                    <tr><td class="row-h">비용·종료</td><td>세 한도 모두 명시 · 알람 SLA</td><td>cap 설정 표 · 예산 대시보드</td></tr>
+                    <tr><td class="row-h">상태·복구</td><td>RPO 정의 · DR 시연 성공</td><td>State 스키마 · DR 보고서</td></tr>
+                    <tr><td class="row-h">도구 권한·안전</td><td>기본 거부 · 인젝션 차단율 기준 통과</td><td>IAM · 인젝션 회귀 결과</td></tr>
+                    <tr><td class="row-h">관측·재현</td><td>Trace 커버리지 기준 · 회귀 + 카나리 통과</td><td>OTel GenAI 스팬 · 평가 보고</td></tr>
+                    <tr><td class="row-h">표준·상호운용</td><td>표준 ADR 존재 · 변경 통제</td><td>ADR · 감사 로그 · CAB 회의록</td></tr>
+                    <tr><td class="row-h" style="background: var(--accent-soft);">교차 HITL</td><td>3 진입점 × 3 액션 = 9 셀 모두 정의</td><td>HITL 매트릭스 (우측)</td></tr>
+                </tbody>
+            </table>
+            <table class="slide-table matrix-table compact" style="margin-top: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 28%;">진입점</th>
+                        <th style="width: 24%;">Approve</th>
+                        <th style="width: 24%;">Edit</th>
+                        <th style="width: 24%;">Reject</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="row-h"><b>Pre-tool</b></td>
+                        <td class="cell-a">위험 거래 승인</td>
+                        <td class="cell-a">인자 수정</td>
+                        <td class="cell-a">취소</td>
+                    </tr>
+                    <tr>
+                        <td class="row-h"><b>Mid-loop</b></td>
+                        <td class="cell-b">진행 허용</td>
+                        <td class="cell-b">계획 수정</td>
+                        <td class="cell-b">재계획</td>
+                    </tr>
+                    <tr>
+                        <td class="row-h"><b>Post-output</b></td>
+                        <td class="cell-c">배포</td>
+                        <td class="cell-c">응답 수정</td>
+                        <td class="cell-c">폐기</td>
+                    </tr>
+                </tbody>
+                <caption>모든 HITL 결정은 트레이스 1 스팬으로 기록한다. 거절 시 사유와 다음 분기를 함께 남긴다.</caption>
+            </table>
+        </div>
+        <div class="callout reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem);">
+            HITL이 너무 많으면 자동화의 가치가 사라지고, 너무 적으면 비즈니스 사고로 이어진다.
+            <span class="sub-line">균형의 핵심은 위험도에 따른 차등 적용</span>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ===== 35 · Ch5 divider ===== -->
+<section class="slide chapter-divider" data-title="Chapter 5">
+    <header class="slide-header"><span class="section-marker">AGENT</span><span class="slide-num">35 / 40</span></header>
+    <div class="slide-content">
+        <div class="chapter-marker reveal">Chapter 5 / 5</div>
+        <div class="chapter-bignum reveal" data-i="2">05<span class="of">/5</span></div>
+        <h2 class="chapter-title reveal" data-i="3">5년 뒤를 보는 <span class="hl">세 축</span></h2>
+        <div class="chapter-questions reveal" data-i="4">
+            <div class="chapter-q-label">이 챕터에서 답할 질문 — 기술·거버넌스·조직</div>
+            <ul>
+                <li><b>기술</b> — Reasoning · Skills · Computer Use · Memory 네 트렌드가 아키텍처를 어떻게 바꾸는가</li>
+                <li><b>거버넌스</b> — Korea AI 기본법 시행과 EU·NIST·ISO 비교, 아키텍트의 네 가지 의무</li>
+                <li><b>조직</b> — SK텔레콤 · 삼성전자 · LG전자 · Workday 78% — 한국 기업은 어디까지 왔는가</li>
+                <li>성숙도와 위험에 따른 도입 우선순위는 어떻게 정하는가</li>
+            </ul>
+        </div>
+        <div class="chapter-bridge reveal" data-i="5">
+            <span class="line"><b>이전 장.</b> 6원칙과 운영 체크 — 지금 적용할 척도</span>
+            <span class="line"><b>이번 장.</b> 5년 뒤를 보는 세 축의 흐름</span>
+            <span class="line"><span class="accent">다음.</span> 마무리 + Q&amp;A</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 36 · 기술 진화 (재구성) ===== -->
+<section class="slide" data-title="5.1 기술 진화">
+    <header class="slide-header"><span class="section-marker">CH5 · 5.1</span><span class="slide-num">36 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">기술의 <span class="hl">네 트렌드</span> — 아키텍처를 바꾸는 힘<span class="sub">Reasoning · Skills · Computer Use · Memory — 각각이 에이전트 설계의 전제를 바꾼다</span></h2>
+        <div class="two-col col-3-2 reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem); align-items: stretch;">
+            <table class="slide-table tight" style="margin-top: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 28%;">트렌드 (정의)</th>
+                        <th style="width: 36%;">아키텍처에 미치는 영향</th>
+                        <th style="width: 36%;">2026 H1 증거</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="row-h">
+                            <b>Reasoning</b>
+                            <span class="sub-line">모델 내부에서 다단계 추론을 수행</span>
+                        </td>
+                        <td>
+                            외부 루프가 단순해진다
+                            <span class="sub-line">추론 깊이가 파라미터 하나로 조절 가능</span>
+                        </td>
+                        <td>
+                            Claude Opus 4.7 Adaptive Thinking (2026-04)
+                            <span class="sub-line">OpenAI o-series · Google thinkingLevel</span>
+                            <span class="sub-line">모든 모델의 기본 파라미터로 흡수</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="row-h">
+                            <b>Skills</b>
+                            <span class="sub-line">워크플로·지식을 포터블 패키지로 표준화</span>
+                        </td>
+                        <td>
+                            도구 단위에서 워크플로 단위로 재사용
+                            <span class="sub-line">에이전트가 능력을 동적으로 획득</span>
+                        </td>
+                        <td>
+                            Anthropic Agent Skills 오픈 표준화 (2025-12)
+                            <span class="sub-line">MCP 위에 워크플로·지식 패키지 표준</span>
+                            <span class="sub-line">Canva · Notion · Figma · Atlassian 합류</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="row-h">
+                            <b>Computer Use</b>
+                            <span class="sub-line">에이전트가 GUI를 직접 조작</span>
+                        </td>
+                        <td>
+                            API 없는 레거시 시스템도 자동화 대상
+                            <span class="sub-line">도구 통합 비용이 급감</span>
+                        </td>
+                        <td>
+                            Claude computer-use 발표 (2024-10)
+                            <span class="sub-line">GPT-5.5 native computer-use (2026-04)</span>
+                            <span class="sub-line">API 없는 시스템의 자동화 장벽 제거</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="row-h" style="background: var(--accent-soft);">
+                            <b>Memory</b>
+                            <span class="sub-line">장기 기억이 독립 컴포넌트로 분리</span>
+                        </td>
+                        <td>
+                            아키텍처 도식에서 별도 박스로 그려야
+                            <span class="sub-line">벤더 카테고리가 형성됨</span>
+                        </td>
+                        <td>
+                            Letta · Zep · Mem0 · LangMem 4파전
+                            <span class="sub-line">시장 $6.3B → $28.5B (35% CAGR)</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>네 트렌드의 공통 방향</h3>
+                    <ul class="dash-list">
+                        <li><b>Reasoning</b> — 외부 루프 복잡도를 모델이 흡수</li>
+                        <li><b>Skills</b> — 도구 연결에서 워크플로 연결로 확장</li>
+                        <li><b>Computer Use</b> — 통합 대상이 API에서 모든 인터페이스로</li>
+                        <li><b>Memory</b> — 컨텍스트 부속에서 독립 인프라로</li>
+                    </ul>
+                </div>
+                <div class="callout ink" style="font-size: var(--small-size);">
+                    <span class="tag">설계 시사점</span>
+                    네 트렌드 모두 에이전트의 자율 범위를 넓힌다. 자율 범위가 넓어질수록 6원칙(특히 자율성·안전·관측)의 중요도가 올라간다.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 37 · 거버넌스·규제 (재구성) ===== -->
+<section class="slide" data-title="5.2 거버넌스·규제">
+    <header class="slide-header"><span class="section-marker">CH5 · 5.2</span><span class="slide-num">37 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal"><span class="hl">Korea AI 기본법 시행 (2026-01-22)</span><span class="sub">한국 청중을 중심에 두고 EU · NIST · ISO와 비교 — 아키텍트의 의무 네 가지</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.5rem, 1.2vh, 0.9rem); grid-template-columns: 1.2fr 1fr; gap: clamp(0.5rem, 1.2vw, 0.9rem); align-items: stretch;">
+            <table class="slide-table tight" style="margin-top: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 22%;">규제 · 표준</th>
+                        <th style="width: 38%;">핵심 의무</th>
+                        <th style="width: 40%;">한국 아키텍트 입장</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="row-h" style="background: var(--accent-soft);">
+                            <b>★ Korea AI 기본법</b>
+                            <span class="sub-line" style="color:var(--ink-mute); font-weight:400;">법률 20676호 · 시행 2026-01-22 · 계도 1년</span>
+                        </td>
+                        <td>
+                            고영향 AI 사전 고지
+                            <span class="sub-line">AI 결과물 표시 (강행)</span>
+                            <span class="sub-line">영향평가 (노력 의무)</span>
+                            <span class="sub-line">10²⁶ FLOPs 모델은 MSIT<span class="def">과학기술정보통신부</span> 보고</span>
+                        </td>
+                        <td>
+                            고영향 영역 분류 — 채용·대출·의료·교통·법집행
+                            <span class="sub-line">화면 노출 표준 + 영향평가 템플릿</span>
+                            <span class="sub-line">CPO 거버넌스 정비</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="row-h">
+                            <b>EU AI Act</b>
+                            <span class="sub-line" style="color:var(--ink-mute); font-weight:400;">Reg. 2024/1689 · Omnibus VII (2026-05-07) 연기 합의</span>
+                        </td>
+                        <td>
+                            금지·고위험·제한·최소 4 분류
+                            <span class="sub-line">GPAI 의무 (10²⁵ FLOPs 이상)</span>
+                            <span class="sub-line">Annex III 고위험 16개월 연기 — 2027-12-02</span>
+                        </td>
+                        <td>
+                            매출 7% 과징금
+                            <span class="sub-line">EU 진출 한국 기업의 사실상 글로벌 기준</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="row-h">
+                            <b>NIST AI RMF</b>
+                            <span class="sub-line" style="color:var(--ink-mute); font-weight:400;">2023-01 + 2024-07 GenAI Profile</span>
+                        </td>
+                        <td>
+                            4 함수 — Govern · Map · Measure · Manage
+                            <span class="sub-line">GenAI 12 위험 카테고리</span>
+                        </td>
+                        <td>
+                            내부 거버넌스 체크리스트의 뼈대
+                            <span class="sub-line">Microsoft · Google · AWS의 기준점</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="row-h">
+                            <b>ISO/IEC 42001</b>
+                            <span class="sub-line" style="color:var(--ink-mute); font-weight:400;">2023-12 발행</span>
+                        </td>
+                        <td>
+                            AI 관리시스템(AIMS) 인증
+                            <span class="sub-line">ISO 27001과 같은 PDCA 구조</span>
+                        </td>
+                        <td>
+                            Gartner 전망 — 2026년 엔터프라이즈 70% 채택
+                            <span class="sub-line">규제 입증의 사실상 글로벌 표준</span>
+                        </td>
+                    </tr>
+                </tbody>
+                <caption>2026-05-07 EU 이사회·의회 잠정 합의(Digital Omnibus on AI) — Annex III 고위험 의무 16개월 연기, 워터마킹 의무 2026-12-02로 앞당김.</caption>
+            </table>
+            <div class="stack-md" style="display:flex; flex-direction:column; justify-content:center;">
+                <div class="col-card accent">
+                    <h3>★ 아키텍트의 네 가지 의무</h3>
+                    <ul class="dash-list">
+                        <li><b>① 사전 영향평가</b><span class="sub-line">Korea(노력) · EU(필수 FRIA) · NIST(Map) · ISO 모두 요구</span></li>
+                        <li><b>② 트레이스·감사 로그</b><span class="sub-line">네 규제 모두에 등장 (EU Art.12)</span></li>
+                        <li><b>③ 평가 슈트와 회귀</b><span class="sub-line">EU GPAI · NIST Measure · ISO</span></li>
+                        <li><b>④ 투명성·표시</b><span class="sub-line">Korea(강행) · EU(Limited risk)</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 38 · 조직 + 도입 매트릭스 (재구성) ===== -->
+<section class="slide" data-title="5.3 조직 + 도입 매트릭스">
+    <header class="slide-header"><span class="section-marker">CH5 · 5.3</span><span class="slide-num">38 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">조직은 <span class="hl">어떻게 바뀌고 있는가</span><span class="sub">한국 사례 · 성숙도와 위험에 따른 도입 매트릭스</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.6rem, 1.4vh, 1rem); grid-template-columns: 1fr 1fr; gap: clamp(0.5rem, 1.2vw, 0.9rem); align-items: stretch;">
+            <div class="stack-md" style="display:flex; flex-direction:column;">
+                <div class="col-card accent">
+                    <h3>한국 사례 (검증)</h3>
+                    <div class="kr-list" style="margin-top: 0.4em;">
+                        <div class="kr-item">
+                            <div class="co">SK텔레콤</div>
+                            <div class="what">'AI Native' 전략 + '1인 1 AI 에이전트' <span class="when">MWC26, 2026-03</span></div>
+                        </div>
+                        <div class="kr-item">
+                            <div class="co">삼성전자</div>
+                            <div class="what">2,500명 파일럿 후 외부 GenAI 직원 공개 <span class="when">2026-05-27</span></div>
+                        </div>
+                        <div class="kr-item">
+                            <div class="co">LG전자</div>
+                            <div class="what">Nvidia Omniverse로 29개 공장 AI화 <span class="when">2030 목표</span></div>
+                        </div>
+                        <div class="kr-item">
+                            <div class="co">Workday 조사</div>
+                            <div class="what">국내 기업 <b>78%</b> AI 에이전트 도입·확대 <span class="when">2025-10</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-card">
+                    <h3>아키텍트의 다음 트랙</h3>
+                    <ul class="dash-list">
+                        <li>코드 작성 → 에이전트 팀의 지휘자, 맥락 설계자</li>
+                        <li>5~15년차 → AI Platform Architect / Head of AI Engineering / CAIO</li>
+                        <li>고성숙 조직 91%가 전담 AI 리더 보유 (저성숙 37%) — Gartner</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="stack-md" style="display:flex; flex-direction:column;">
+                <div>
+                    <div style="font-family: var(--font-mono); font-size: var(--small-size); color: var(--ink-mute); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5em;">도입 매트릭스 — 성숙도 × 위험</div>
+                    <table class="slide-table matrix-table compact" style="margin-top: 0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%; background:#fff; border:none;"></th>
+                                <th colspan="3">조직 성숙도</th>
+                            </tr>
+                            <tr>
+                                <th style="background:#fff; border:none;"></th>
+                                <th>낮음</th><th>중간</th><th>높음</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="row-h">위험 낮음</td>
+                                <td class="cell-empty">—</td>
+                                <td class="cell-a">표준 우선</td>
+                                <td class="cell-a">워크플로</td>
+                            </tr>
+                            <tr>
+                                <td class="row-h">위험 중간</td>
+                                <td class="cell-a">표준 우선</td>
+                                <td class="cell-b">표준 + 견고성</td>
+                                <td class="cell-b">워크플로 + 표준</td>
+                            </tr>
+                            <tr>
+                                <td class="row-h">위험 높음</td>
+                                <td class="cell-c">견고성</td>
+                                <td class="cell-c">견고성</td>
+                                <td class="cell-c">견고성 + 워크플로</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="matrix-legend">
+                    <span class="lg"><span class="sw a"></span>표준·자동화 우선</span>
+                    <span class="lg"><span class="sw b"></span>혼합 도입</span>
+                    <span class="lg"><span class="sw c"></span>견고성 우선</span>
+                </div>
+                <div class="callout" style="font-size: var(--small-size); margin-top: 0.4em;">
+                    <b>도입 가이드.</b> 한두 흐름만 골라 시작 — 동시에 다 하면 비용 부담이 크다.
+                    <span class="sub-line">위험이 큰 워크로드는 견고성부터, 표준은 어느 조직에도 진입 장벽이 낮다.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 39 · 마무리 (재구성) ===== -->
+<section class="slide end-slide" data-title="마무리">
+    <header class="slide-header"><span class="section-marker">CLOSE</span><span class="slide-num">39 / 40</span></header>
+    <div class="slide-content" style="justify-content: center;">
+        <h2 class="slide-title reveal">마무리 — <span class="hl">핵심 세 가지</span></h2>
+        <div class="num-grid reveal" data-i="2" style="margin-top: clamp(0.8rem, 1.8vh, 1.3rem); grid-template-columns: repeat(3, 1fr);">
+            <div class="num-item">
+                <div class="n">01</div>
+                <h3>에이전트 = Loop + Tools + State + Policy</h3>
+                <p>네 요소가 모두 갖춰져야 운영 가능한 에이전트</p>
+            </div>
+            <div class="num-item">
+                <div class="n">02</div>
+                <h3>도입이 아니라 설계가 차별점</h3>
+                <p>도입은 이제 차별점이 아니다. 파이프라인과 정책을 어떻게 짜느냐가 갈린다</p>
+            </div>
+            <div class="num-item accent">
+                <div class="n">03</div>
+                <h3>자율성과 안전이 가장 중요한 두 원칙</h3>
+                <p>자율 범위가 넓어질수록 안전선의 중요도가 올라간다</p>
+            </div>
+        </div>
+        <div class="two-col reveal" data-i="3" style="margin-top: clamp(1rem, 2.2vh, 1.5rem); grid-template-columns: 1fr;">
+            <div class="col-card muted">
+                <h3>내일 할 수 있는 3가지</h3>
+                <ul class="dash-list">
+                    <li><b>① 후보 식별</b> — 기존 시스템에서 에이전트 후보 작업 1개를 찾는다</li>
+                    <li><b>② 4요소 체크</b> — 그 작업의 Loop · Tools · State · Policy를 정의할 수 있는지 확인한다</li>
+                    <li><b>③ 위험 식별</b> — 6원칙 중 가장 위험한 1개를 식별하고 대응 방안을 먼저 설계한다</li>
+                </ul>
+            </div>
+        </div>
+        <div class="big-quote reveal" data-i="4" style="margin-top: clamp(1rem, 2.5vh, 1.5rem); text-align: left; max-width: none;">
+            <span class="hl">Thank you.</span> &nbsp; <span style="color: var(--ink-soft); font-size: 0.65em;">Q&amp;A</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===== 40 · 추가 학습 자료 ===== -->
+<section class="slide" data-title="추가 학습 자료">
+    <header class="slide-header"><span class="section-marker">APPENDIX</span><span class="slide-num">40 / 40</span></header>
+    <div class="slide-content">
+        <h2 class="slide-title reveal">본 강의의 <span class="hl">1차 출처</span></h2>
+        <div class="two-col reveal" data-i="2" style="margin-top: clamp(0.7rem, 1.6vh, 1.1rem); grid-template-columns: 1fr 1fr; align-items: stretch;">
+            <div class="col-card">
+                <h3>정의 · 아키텍처 패턴</h3>
+                <ul class="dash-list">
+                    <li>Russell &amp; Norvig, <em>AI: A Modern Approach</em>, 4판 (Pearson, 2020)</li>
+                    <li>Anthropic, <em>Building effective agents</em> (Schluntz·Zhang, 2024-12)</li>
+                    <li>Google, <em>Agents</em> 백서 (Wiesinger 외, 2024-09)</li>
+                    <li>OpenAI, <em>A Practical Guide to Building Agents</em> (2025-03)</li>
+                </ul>
+            </div>
+            <div class="col-card accent">
+                <h3>거버넌스 · 규제</h3>
+                <ul class="dash-list">
+                    <li>Korea AI 기본법 (법률 제20676호, 2026-01-22 시행) — law.go.kr · Reuters 2026-01-22</li>
+                    <li>EU AI Act (Reg. 2024/1689) + Digital Omnibus on AI 잠정합의 (2026-05-07)</li>
+                    <li>NIST AI RMF (2023-01) + GenAI Profile NIST-AI-600-1 (2024-07)</li>
+                    <li>ISO/IEC 42001:2023 (AI Management Systems)</li>
+                    <li>OWASP LLM Top 10 (2025) — genai.owasp.org/llm-top-10</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>통계 · 사례 (2025–2026 H1)</h3>
+                <ul class="dash-list">
+                    <li>Stack Overflow Developer Survey 2025 (약 49,000명) — survey.stackoverflow.co/2025/ai</li>
+                    <li>BCG AI Radar 2026-01-15 + AI Value 보고서 2025-09-30</li>
+                    <li>McKinsey State of AI 2025-11-05 — Agents · Innovation · Transformation</li>
+                    <li>GitHub Octoverse 2025 (2025-10-29 발표)</li>
+                    <li>Anthropic, <em>How AI is Transforming Work at Anthropic</em> (2025-12)</li>
+                    <li>Cognition, <em>Devin's 2025 Performance Review</em> (2025-12)</li>
+                    <li>Mike Krieger 발언 — Cisco AI Summit 2026-02-03</li>
+                    <li>Workday Korea AI Agents Study (2025-10) · SK Telecom Newsroom (2026-03)</li>
+                </ul>
+            </div>
+            <div class="col-card">
+                <h3>표준 · 모델 · 플랫폼 (2026 H1)</h3>
+                <ul class="dash-list">
+                    <li>MCP — modelcontextprotocol.io (Anthropic 2024-11)</li>
+                    <li>A2A — google.github.io/A2A (Google 2025-04)</li>
+                    <li>Linux Foundation Agentic AI Foundation (2026 출범)</li>
+                    <li>Claude Opus 4.7 — anthropic.com/research/claude-opus-4-7 (2026-04-16)</li>
+                    <li>Cognition Devin Series D — cognition.ai/blog/series-d (2026-05-27)</li>
+                    <li>OpenTelemetry GenAI semantic conventions</li>
+                </ul>
+            </div>
+        </div>
+        <div class="two-col reveal" data-i="3" style="margin-top: clamp(0.5rem, 1.2vh, 0.8rem); grid-template-columns: 1fr;">
+            <div class="col-card muted">
+                <h3>프레임워크 선택 참고</h3>
+                <ul class="dash-list">
+                    <li><b>LangGraph</b> — State 관리 강점, Python 생태계</li>
+                    <li><b>CrewAI</b> — Supervisor 패턴 기본, 빠른 프로토타이핑</li>
+                    <li><b>AutoGen</b> — Multi-Agent 대화 패턴</li>
+                    <li><b>Strands</b> — AWS 통합, 모델 무관</li>
+                    <li><b>자체 구현</b> — 완전한 통제, 유지보수 부담</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<script>
+class SlidePresentation {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.current = 0;
+        this.navContainer = document.getElementById('navDots');
+        this.progressBar = document.getElementById('progressBar');
+        this._buildNavDots();
+        this._setupObserver();
+        this._setupKeyboard();
+        this._setupTouch();
+        this._setupWheel();
+        this._updateProgress();
+    }
+    _buildNavDots() {
+        this.navContainer.innerHTML = '';
+        this.slides.forEach((slide, i) => {
+            const btn = document.createElement('button');
+            btn.setAttribute('aria-label', `Slide ${i + 1}: ${slide.dataset.title || ''}`);
+            btn.addEventListener('click', () => this.goTo(i));
+            this.navContainer.appendChild(btn);
+        });
+        this._syncDots();
+    }
+    _setupObserver() {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((e) => {
+                if (e.isIntersecting && e.intersectionRatio > 0.55) {
+                    e.target.classList.add('visible');
+                    this.current = this.slides.indexOf(e.target);
+                    this._syncDots();
+                    this._updateProgress();
+                }
+            });
+        }, { threshold: [0, 0.25, 0.55, 0.9] });
+        this.slides.forEach((s) => io.observe(s));
+    }
+    _setupKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault(); this.goTo(this.current + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault(); this.goTo(this.current - 1);
+            } else if (e.key === 'Home') { this.goTo(0); }
+            else if (e.key === 'End')   { this.goTo(this.slides.length - 1); }
+        });
+    }
+    _setupTouch() {
+        let startY = 0, startX = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; startX = e.touches[0].clientX; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const dy = startY - e.changedTouches[0].clientY;
+            const dx = startX - e.changedTouches[0].clientX;
+            if (Math.abs(dy) < 50 || Math.abs(dy) < Math.abs(dx)) return;
+            this.goTo(this.current + (dy > 0 ? 1 : -1));
+        }, { passive: true });
+    }
+    _setupWheel() { window.addEventListener('scroll', () => this._updateProgress(), { passive: true }); }
+    _syncDots() { this.navContainer.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === this.current)); }
+    _updateProgress() { const pct = (this.current / Math.max(1, this.slides.length - 1)) * 100; this.progressBar.style.width = pct + '%'; }
+    goTo(i) { const idx = Math.max(0, Math.min(this.slides.length - 1, i)); this.slides[idx].scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+</script>
+</body>
+</html>
