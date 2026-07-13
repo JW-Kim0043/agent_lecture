@@ -37,7 +37,7 @@
     <div class="sk-head">서두 <span class="sep">·</span> <span class="chap">학습 목표 및 강의 구성</span></div>
     <div class="sk-body">
         <div class="sk-summary">
-            <div class="lead">2시간 후 청중이 자기 조직의 요구사항으로부터 최적 설계와 그 근거를 도출하도록 구성</div>
+            <div class="lead">2시간 후, 자기 조직의 요구사항으로부터 최적 설계와 그 근거를 스스로 도출할 수 있는 상태를 목표로 구성</div>
             <div class="main">학습 목표 5가지 · 본문 7개 장</div>
         </div>
         <div class="sk-grid cols-2">
@@ -156,7 +156,7 @@
                 <div class="sk-mermaid"><div class="mermaid">
 flowchart TB
     subgraph BEFORE["이전 · 단일 모델 의존"]
-        U1[사용자] --> M[거대 LLM 1대] --> R1[결과]
+        U1[사용자] --> M[단일 범용 LLM] --> R1[결과]
     end
     subgraph AFTER["현재 · Agentic Workflow"]
         U2[사용자] --> A1[분류] --> A2[검색] --> A3[추론] --> A4[검증] --> A5[작성] --> R2[결과]
@@ -314,7 +314,7 @@ flowchart TB
         <div class="text">
             <h2>에이전트란<br>무엇인가.</h2>
             <p class="lede">Loop · Tools · State · Policy — 운영 관점의 네 요소.<br>비즈니스 표현으로는 <strong style="color:var(--sk-red)">두뇌(LLM) · 손발(Tools) · 기억(Memory)</strong>.</p>
-            <p class="bridge"><strong>이전 장</strong> · 아키텍트 책임 6 영역(P1~P6) 미리보기. <strong>이번 장</strong> · 학계·산업의 정의 비교 → 운영 관점 분해 → 6원칙 척추 인덱스. <strong>다음 장</strong> · 6원칙 중 P4·P6을 적용하는 도구 설계.</p>
+            <p class="bridge"><strong>이전 장</strong> · 아키텍트 책임 6 영역(P1~P6) 미리보기. <strong>이번 장</strong> · 학계·산업의 정의 비교 → 운영 관점 분해 → <strong style="color:var(--sk-red)">한 턴의 해부</strong> → 6원칙 척추 인덱스 → 5+1 패턴 카탈로그. <strong>다음 장</strong> · 6원칙 중 P4·P6을 적용하는 도구 설계.</p>
         </div>
     </div>
     <div class="sk-foot"><span class="pg">07.</span><span class="cap">2장 · 에이전트의 구성 요소</span></div>
@@ -375,7 +375,7 @@ flowchart TB
             </div>
         </div>
         <div style="margin-top:var(--gap); padding:0.9rem 1.2rem; background:var(--sk-card-soft); border-left:4px solid var(--sk-red); font-size:var(--body-size);">
-            <strong style="color:var(--sk-red);">정의 간 공통점</strong> &nbsp; ① 환경·세계와 상호작용 ② 자율적 의사결정 ③ 다단계 처리. 다음 슬라이드의 네 요소(Loop·Tools·State·Policy)는 본 강의에서 사용하는 운영 관점의 분해 · 위 정의들과 일관.
+            <strong style="color:var(--sk-red);">정의 간 공통점</strong> &nbsp; ① 환경·세계와 상호작용 ② 자율적 의사결정 ③ 다단계 처리. 2.4의 네 요소(Loop·Tools·State·Policy)는 본 강의에서 사용하는 운영 관점의 분해 · 위 정의들과 일관.
         </div>
     </div>
     <div class="sk-foot"><span class="pg">08.</span><span class="cap">권위 있는 정의 — 인용</span></div>
@@ -470,14 +470,14 @@ flowchart LR
             </div>
         </div>
         <div style="margin-top:var(--gap); padding:0.9rem 1.2rem; background:var(--sk-card-soft); border-left:4px solid var(--sk-red); font-size:var(--body-size);">
-            <strong style="color:var(--sk-red);">판정 원칙</strong> &nbsp; 네 요소가 모두 갖춰진 시스템을 운영 가능한 에이전트로 본다. 빠진 요소가 있다면 그것이 곧 다음 설계 과제가 된다.
+            <strong style="color:var(--sk-red);">판정 원칙</strong> &nbsp; 다음 슬라이드의 네 요소(Loop · Tools · State · Policy)가 모두 갖춰진 시스템을 운영 가능한 에이전트로 본다. 빠진 요소가 있다면 그것이 곧 다음 설계 과제가 된다.
         </div>
     </div>
     <div class="sk-foot"><span class="pg">10.</span><span class="cap">챗봇과 에이전트</span></div>
 </section>
 
 
-<!-- 2.2 4요소 -->
+<!-- 2.4 네 가지 구성 요소 -->
 <section class="slide" data-title="2.4 네 가지 구성 요소">
     <div class="sk-head">2장 · 에이전트의 구성 요소 <span class="sep">·</span> <span class="chap">2.4 Loop · Tools · State · Policy (운영 관점 분해)</span></div>
     <div class="sk-body">
@@ -535,9 +535,65 @@ flowchart LR
 </section>
 
 
-<!-- 2.3 6원칙 척추 -->
-<section class="slide" data-title="2.5 설계 원칙 척추">
-    <div class="sk-head">2장 · 에이전트의 구성 요소 <span class="sep">·</span> <span class="chap">2.5 설계 원칙 6가지 — 한눈에 보기</span></div>
+<!-- 2.5 한 턴의 해부 (Anatomy of a Turn) -->
+<section class="slide" data-title="2.5 한 턴의 해부">
+    <div class="sk-head">2장 · 에이전트의 구성 요소 <span class="sep">·</span> <span class="chap">2.5 한 턴의 해부 — 네 요소가 실제로 맞물리는 순간</span></div>
+    <div class="sk-body">
+        <div class="sk-summary">
+            <div class="lead">앞의 네 요소는 정의였고, 여기서 그 넷이 단 한 번의 루프 안에서 어떻게 맞물리는지 봅니다</div>
+            <div class="main">매 턴 = 컨텍스트 조립 → LLM 반환 → 런타임 실행 → 상태 갱신</div>
+        </div>
+        <div class="sk-split" style="grid-template-columns:1.05fr 1fr;">
+            <div class="left">
+                <div class="sk-card" style="flex:none;">
+                    <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>① 이번 턴, 컨텍스트 윈도우에 담기는 것</div>
+                    <div class="bd" style="padding:0.7rem 0.9rem;">
+                        <div style="display:flex;flex-direction:column;gap:0.4rem;font-size:clamp(0.72rem,0.95vw,0.85rem);">
+                            <div style="padding:0.35rem 0.6rem;border-left:3px solid var(--sk-red);background:#FFF4EB;"><strong>시스템 프롬프트 · 가드레일</strong> <span style="color:var(--ink-mute);">— 역할·한도·권한 (Policy)</span></div>
+                            <div style="padding:0.35rem 0.6rem;border-left:3px solid var(--sk-orange);background:#FFF4EB;"><strong>도구 스키마 N개</strong> <span style="color:var(--ink-mute);">— name·description·JSON Schema (Tools)</span></div>
+                            <div style="padding:0.35rem 0.6rem;border-left:3px solid var(--sk-orange-2);background:#FFF4EB;"><strong>대화 이력 · 누적 궤적</strong> <span style="color:var(--ink-mute);">— 이전 사고·행동·관찰 (State)</span></div>
+                            <div style="padding:0.35rem 0.6rem;border-left:3px solid var(--ink-mute);background:#F2F2F2;"><strong>직전 도구 결과</strong> <span style="color:var(--ink-mute);">— 관찰(observation), 다음 판단의 재료</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sk-card" style="flex:none;">
+                    <div class="hd" style="background:#FFE0E5;"><span class="ic" style="background:var(--sk-red);"></span>② LLM이 반환하는 것 (텍스트가 아니라 구조)</div>
+                    <div class="bd" style="padding:0.7rem 0.9rem;">
+                        <pre style="margin:0;font-family:var(--font-mono);font-size:clamp(0.66rem,0.85vw,0.78rem);line-height:1.5;color:var(--ink-2);white-space:pre-wrap;">{ "type": "tool_use",
+  "name": "search_orders",
+  "input": { "user_id": "u_182",
+             "status": "shipped" } }</pre>
+                        <p style="margin:0.5rem 0 0;font-size:clamp(0.7rem,0.9vw,0.8rem);color:var(--ink-mute);">→ 최종 답이면 <code>text</code>, 아니면 <code>tool_use</code>. 이 분기가 곧 <strong style="color:var(--sk-red);">루프 지속 여부</strong>.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="right">
+                <div class="sk-card">
+                    <div class="hd"><span class="ic" style="background:var(--sk-orange);"></span>③ 런타임이 하는 일 (LLM이 아니라 코드)</div>
+                    <div class="bd"><ul>
+                        <li><strong>스키마 검증</strong> — input을 JSON Schema로 기계 검증 <span style="color:var(--ink-mute);">(Tools)</span></li>
+                        <li><strong>정책 게이트</strong> — 허용 목록·한도·HITL 통과 여부 <span style="color:var(--ink-mute);">(Policy)</span></li>
+                        <li><strong>실행 · 관찰</strong> — 도구 호출 후 결과를 회수 <span style="color:var(--ink-mute);">(Tools)</span></li>
+                        <li><strong>결과 주입 · 궤적 갱신</strong> — 관찰을 이력에 append, 스냅샷 <span style="color:var(--ink-mute);">(State)</span></li>
+                        <li><strong>종료 판정</strong> — 답 완성/한도 도달이면 반환, 아니면 ①로 <span style="color:var(--ink-mute);">(Loop)</span></li>
+                    </ul></div>
+                </div>
+                <div class="sk-card">
+                    <div class="hd" style="background:#F2F2F2;"><span class="ic" style="background:var(--ink-mute);"></span>여기서 네 요소가 만난다</div>
+                    <div class="bd" style="font-size:clamp(0.72rem,0.92vw,0.82rem);">
+                        <p style="margin:0;"><strong style="color:var(--sk-red);">Loop</strong>는 이 ①~③을 매 턴 다시 조립하는 제어, <strong style="color:var(--sk-orange);">Tools</strong>는 ②의 호출과 ③의 실행, <strong style="color:var(--sk-orange-2);">State</strong>는 ①의 이력과 ③의 궤적 축적, <strong style="color:var(--ink-mute);">Policy</strong>는 ①의 가드레일과 ③의 게이트. 4요소는 별개 상자가 아니라 <strong>한 턴 안에서 겹쳐 도는 하나의 순환</strong>.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="sk-foot"><span class="pg">12.</span><span class="cap">한 턴의 해부</span></div>
+</section>
+
+
+<!-- 2.6 설계 원칙 척추 -->
+<section class="slide" data-title="2.6 설계 원칙 척추">
+    <div class="sk-head">2장 · 에이전트의 구성 요소 <span class="sep">·</span> <span class="chap">2.6 설계 원칙 6가지 — 한눈에 보기</span></div>
     <div class="sk-body">
         <div class="sk-summary">
             <div class="lead">"무엇인가" — 네 요소 · "어떻게 설계하는가" — 여섯 원칙</div>
@@ -600,30 +656,13 @@ flowchart LR
             <caption>각 원칙은 본문 챕터에서 별도 슬라이드로 상세 다룸 (정의 · 적용 방법 · 트레이드오프 · 체크포인트)</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">12.</span><span class="cap">설계 원칙 6 · 척추</span></div>
+    <div class="sk-foot"><span class="pg">13.</span><span class="cap">설계 원칙 6 · 척추</span></div>
 </section>
 
 
-<!-- ============================================================
-     3장 표지 — 도구 설계와 MCP
-     ============================================================ -->
-<section class="slide" data-title="3장 표지">
-    <div class="sk-head">3장 <span class="sep">·</span> <span class="chap">도구 설계와 MCP</span></div>
-    <div class="sk-chap">
-        <div class="num">03</div>
-        <div class="text">
-            <h2>외부 시스템과<br>안전하게 통신하기.</h2>
-            <p class="lede">도구의 네 가지 구성 요소를 분리하여 설계하지 않으면<br>권한 · 비용 · 디버깅이 모두 결합되어 운영이 어려워진다.</p>
-            <p class="bridge"><strong>이전 장</strong> · 에이전트 정의와 6원칙 인덱스. <strong>이번 장</strong> · <span class="sk-pill" style="font-size:0.8em;">P4</span> 권한·안전과 <span class="sk-pill" style="font-size:0.8em;">P6</span> 표준·상호운용을 도구 설계 관점에서 적용. <strong>다음 장</strong> · 추론·상태·메모리에서 <span class="sk-pill" style="font-size:0.8em;">P2·P3·P5</span>를 다룸.</p>
-        </div>
-    </div>
-    <div class="sk-foot"><span class="pg">13.</span><span class="cap">3장 · 도구 설계와 MCP</span></div>
-</section>
-
-
-<!-- 3.0 Anthropic 5+1 패턴 카탈로그 -->
-<section class="slide" data-title="3.0 패턴 카탈로그">
-    <div class="sk-head">3장 · 도구 설계와 MCP <span class="sep">·</span> <span class="chap">3.0 패턴 카탈로그 — Anthropic 5+1 패턴</span></div>
+<!-- 2.7 Anthropic 5+1 패턴 카탈로그 -->
+<section class="slide" data-title="2.7 패턴 카탈로그">
+    <div class="sk-head">2장 · 에이전트의 구성 요소 <span class="sep">·</span> <span class="chap">2.7 패턴 카탈로그 — Anthropic 5+1 패턴</span></div>
     <div class="sk-body">
         <div class="sk-summary">
             <div class="lead">실무에서 가장 많이 인용되는 분류 — 처음부터 Agent를 짜지 말고 적합한 Workflow가 있는지 검토</div>
@@ -704,12 +743,29 @@ flowchart LR
 </section>
 
 
+<!-- ============================================================
+     3장 표지 — 도구 설계와 MCP
+     ============================================================ -->
+<section class="slide" data-title="3장 표지">
+    <div class="sk-head">3장 <span class="sep">·</span> <span class="chap">도구 설계와 MCP</span></div>
+    <div class="sk-chap">
+        <div class="num">03</div>
+        <div class="text">
+            <h2>외부 시스템과<br>안전하게 통신하기.</h2>
+            <p class="lede">도구의 네 가지 구성 요소를 분리하여 설계하지 않으면<br>권한 · 비용 · 디버깅이 모두 결합되어 운영이 어려워진다.</p>
+            <p class="bridge"><strong>이전 장</strong> · 에이전트 정의 · 패턴 카탈로그 · 6원칙 인덱스. <strong>이번 장</strong> · <span class="sk-pill" style="font-size:0.8em;">P4</span> 권한·안전과 <span class="sk-pill" style="font-size:0.8em;">P6</span> 표준·상호운용을 도구 설계 관점에서 적용. <strong>다음 장</strong> · 추론·상태·메모리에서 <span class="sk-pill" style="font-size:0.8em;">P2·P3·P5</span>를 다룸.</p>
+        </div>
+    </div>
+    <div class="sk-foot"><span class="pg">15.</span><span class="cap">3장 · 도구 설계와 MCP</span></div>
+</section>
+
+
 <!-- 3.1 Function Calling -->
 <section class="slide" data-title="3.1 Function Calling">
-    <div class="sk-head">3장 · 도구 설계와 MCP <span class="sep">·</span> <span class="chap">3.1 도구 호출 — Function Calling</span></div>
+    <div class="sk-head">3장 · 도구 설계와 MCP <span class="sep">·</span> <span class="chap">3.1 도구 호출 — Function Calling (Tool Use)</span></div>
     <div class="sk-body">
         <div class="sk-summary">
-            <div class="lead">호출 결정의 주체가 사람이 아니라 LLM이라는 점이 가장 큰 차이</div>
+            <div class="lead">일반 API 연동과의 가장 큰 차이 — 호출 결정의 주체가 사람이 아니라 LLM</div>
             <div class="main">스키마의 description이 곧 인터페이스</div>
         </div>
         <div class="sk-split">
@@ -733,9 +789,9 @@ flowchart TB
                 <div class="sk-card">
                     <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>핵심 차이</div>
                     <div class="bd"><ul>
-                        <li>인자 형식 — 스키마가 검증</li>
-                        <li>그러나 어느 도구를 부를지의 결정은 description의 의미를 LLM이 해석한 결과</li>
-                        <li>따라서 description이 곧 LLM 입장에서의 API 문서</li>
+                        <li>인자의 <strong>형식</strong>은 JSON Schema가 기계적으로 검증</li>
+                        <li>그러나 어느 도구를 <strong>언제</strong> 부를지는 description을 LLM이 해석한 결과</li>
+                        <li>따라서 description이 곧 LLM에게 주는 API 문서 — 사람이 읽는 문서만큼 공들여야 함</li>
                     </ul></div>
                 </div>
                 <div class="sk-card">
@@ -748,7 +804,7 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">15.</span><span class="cap">Function Calling</span></div>
+    <div class="sk-foot"><span class="pg">16.</span><span class="cap">Function Calling</span></div>
 </section>
 
 
@@ -803,7 +859,7 @@ flowchart TB
             <caption>네 요소가 결합되면 권한·비용·디버깅이 한 지점에 묶임 → 변경 주기가 다른 책임을 분리하는 것이 설계의 출발점</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">16.</span><span class="cap">도구 아키텍처 4요소</span></div>
+    <div class="sk-foot"><span class="pg">17.</span><span class="cap">도구 아키텍처 4요소</span></div>
 </section>
 
 
@@ -853,7 +909,7 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">17.</span><span class="cap">도구 안전 · 다층 방어</span></div>
+    <div class="sk-foot"><span class="pg">18.</span><span class="cap">도구 안전 · 다층 방어</span></div>
 </section>
 
 
@@ -862,8 +918,8 @@ flowchart TB
     <div class="sk-head">3장 · 도구 설계와 MCP <span class="sep">·</span> <span class="chap">3.4 MCP — 도구 통합 표준</span></div>
     <div class="sk-body">
         <div class="sk-summary">
-            <div class="lead">MCP (Model Context Protocol) — Anthropic이 2024년 11월 공개한 개방형 표준</div>
-            <div class="main">에이전트와 외부 도구 간 표준화된 인터페이스</div>
+            <div class="lead">MCP (Model Context Protocol) — Anthropic이 2024년 11월 공개한 개방형 표준 · 2025년 OpenAI·Google 등 주요 벤더가 채택하며 사실상의 업계 표준으로 정착</div>
+            <div class="main">에이전트와 외부 도구·자원 간 표준화된 인터페이스 — "AI계의 USB-C 포트"</div>
         </div>
         <div class="sk-split">
             <div class="left">
@@ -916,10 +972,17 @@ flowchart TB
                         <li>정적 Registry로도 충분히 관리 가능한 규모</li>
                     </ul></div>
                 </div>
+                <div class="sk-card">
+                    <div class="hd" style="background:#F2F2F2;"><span class="ic" style="background:var(--ink-mute);"></span>도입 시 유의 (P4 관점)</div>
+                    <div class="bd"><ul>
+                        <li>외부 MCP 서버는 공급망 신뢰 문제 — 출처 검증·버전 고정 필요</li>
+                        <li>서버가 반환하는 텍스트도 인젝션 경로 — 3.3의 방어선을 동일 적용</li>
+                    </ul></div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">18.</span><span class="cap">MCP 표준</span></div>
+    <div class="sk-foot"><span class="pg">19.</span><span class="cap">MCP 표준</span></div>
 </section>
 
 
@@ -934,7 +997,7 @@ flowchart TB
         <p class="sub">여기까지 1장부터 3장까지 — 아키텍트 역할의 확장,<br>구성 요소, 도구 설계와 MCP를 다뤘습니다.</p>
         <div class="timer">다음: 4장 · 추론 패턴, 상태, 메모리</div>
     </div>
-    <div class="sk-foot"><span class="pg">19.</span><span class="cap">Break · Session 1 / 2</span></div>
+    <div class="sk-foot"><span class="pg">20.</span><span class="cap">Break · Session 1 / 2</span></div>
 </section>
 
 
@@ -947,11 +1010,11 @@ flowchart TB
         <div class="num">04</div>
         <div class="text">
             <h2>에이전트가<br>판단하고 기억하는 방식.</h2>
-            <p class="lede">상태는 영속화로 복구를 보장하고<br>예산 한도가 종료를 보장.</p>
-            <p class="bridge"><strong>이전 장</strong> · 도구 설계와 MCP. <strong>이번 장</strong> · 추론 패턴 5종 + <span class="sk-pill" style="font-size:0.8em;">P2</span> 비용·종료 + <span class="sk-pill" style="font-size:0.8em;">P3</span> 상태·복구 + <span class="sk-pill" style="font-size:0.8em;">P5</span> 관측·재현. <strong>다음 장</strong> · <span class="sk-pill" style="font-size:0.8em;">P1</span> 자율성·통제와 멀티 에이전트.</p>
+            <p class="lede">추론 패턴이 판단의 방식을 정하고, 컨텍스트가 판단의 재료를 채우며,<br>상태 영속화가 복구를, 예산 한도가 종료를 보장한다.</p>
+            <p class="bridge"><strong>이전 장</strong> · 도구 설계와 MCP. <strong>이번 장</strong> · 추론 패턴 5종 + 컨텍스트 엔지니어링 + <span class="sk-pill" style="font-size:0.8em;">P2</span> 비용·종료 + <span class="sk-pill" style="font-size:0.8em;">P3</span> 상태·복구 + <span class="sk-pill" style="font-size:0.8em;">P5</span> 관측·재현. <strong>다음 장</strong> · <span class="sk-pill" style="font-size:0.8em;">P1</span> 자율성·통제와 멀티 에이전트.</p>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">20.</span><span class="cap">4장 · 추론 · 상태 · 메모리</span></div>
+    <div class="sk-foot"><span class="pg">21.</span><span class="cap">4장 · 추론 · 상태 · 메모리</span></div>
 </section>
 
 
@@ -1025,13 +1088,63 @@ flowchart TB
             <caption>출처: Yao 외 ReAct (2022), Shinn 외 Reflexion (2023), Xu 외 ReWOO (2023). Plan-and-Execute는 LangChain 등에서 정식화. Reasoning model 통합은 OpenAI o-시리즈(2024~) · Anthropic extended thinking(2025~) 기반.</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">21.</span><span class="cap">추론 패턴 · 선택 기준</span></div>
+    <div class="sk-foot"><span class="pg">22.</span><span class="cap">추론 패턴 · 선택 기준</span></div>
 </section>
 
 
-<!-- 4.2 P2·P3 -->
-<section class="slide" data-title="4.2 비용·상태">
-    <div class="sk-head">4장 · 추론 · 상태 · 메모리 <span class="sep">·</span> <span class="chap">4.2 비용 한도(<span class="sk-pill">P2</span>)와 상태 복구(<span class="sk-pill">P3</span>)</span></div>
+<!-- 4.2 컨텍스트 엔지니어링 -->
+<section class="slide" data-title="4.2 컨텍스트 엔지니어링">
+    <div class="sk-head">4장 · 추론 · 상태 · 메모리 <span class="sep">·</span> <span class="chap">4.2 컨텍스트 엔지니어링 — 유한 자원의 관리</span></div>
+    <div class="sk-body">
+        <div class="sk-summary">
+            <div class="lead">프롬프트 엔지니어링의 다음 단계 — "무엇을 말할까"에서 "매 단계 컨텍스트에 무엇을 남길까"로</div>
+            <div class="main">컨텍스트 윈도우는 유한한 자원 — 채우는 설계보다 비우는 설계가 어렵다</div>
+        </div>
+        <div class="sk-grid cols-2">
+            <div class="sk-card">
+                <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>① Compaction — 압축·요약</div>
+                <div class="bd"><ul>
+                    <li>히스토리가 한도에 근접하면 요약으로 치환하고 이어서 진행</li>
+                    <li>오래된 도구 결과부터 폐기 — 가장 안전한 절감 대상</li>
+                    <li>무엇을 남길지가 곧 설계 — 결정·미해결 이슈는 보존</li>
+                </ul></div>
+            </div>
+            <div class="sk-card">
+                <div class="hd"><span class="ic" style="background:var(--sk-orange);"></span>② Structured Note-taking — 외부 메모</div>
+                <div class="bd"><ul>
+                    <li>진행 상황·결정 사항을 컨텍스트 밖(파일·메모리)에 기록</li>
+                    <li>컨텍스트 리셋 후에도 메모를 다시 읽어 작업 연속성 유지</li>
+                    <li>상태 영속화(<span class="sk-pill">P3</span>)와 같은 문제의식 — 기억을 창밖에 둔다</li>
+                </ul></div>
+            </div>
+            <div class="sk-card">
+                <div class="hd"><span class="ic" style="background:var(--sk-orange);"></span>③ Sub-agent Isolation — 컨텍스트 격리</div>
+                <div class="bd"><ul>
+                    <li>탐색·검증 등 토큰을 많이 쓰는 작업은 서브에이전트에 위임</li>
+                    <li>본 루프에는 요약된 결과만 반환 — 주 컨텍스트를 깨끗하게 유지</li>
+                    <li>5장 멀티 에이전트 토폴로지의 대표적 도입 동기</li>
+                </ul></div>
+            </div>
+            <div class="sk-card">
+                <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>④ Just-in-time Retrieval — 적시 로딩</div>
+                <div class="bd"><ul>
+                    <li>모든 지식을 사전 주입하지 않고 필요한 시점에 도구로 조회</li>
+                    <li>식별자(파일 경로·쿼리·링크)만 컨텍스트에 두고 내용은 그때 로드</li>
+                    <li>사전 주입형 RAG 대비 컨텍스트 낭비와 노이즈 감소</li>
+                </ul></div>
+            </div>
+        </div>
+        <div style="margin-top:var(--gap); padding:0.9rem 1.2rem; background:var(--sk-card-soft); border-left:4px solid var(--sk-red); font-size:var(--body-size);">
+            <strong style="color:var(--sk-red);">왜 필요한가</strong> &nbsp; 컨텍스트가 길어질수록 중간 정보의 회수 정확도가 떨어진다(<em>context rot</em>). 컨텍스트 윈도우는 작업 책상과 같아서, 서류가 쌓일수록 정작 필요한 문서를 찾기 어렵다. "넣을 수 있다"와 "넣어야 한다"를 구분하는 것이 원칙 — 컨텍스트 절감은 곧 토큰 비용 절감(<span class="sk-pill">P2</span>)이기도 하다. &nbsp;<span style="color:var(--ink-mute);">출처: Anthropic, <em>Effective context engineering for AI agents</em> (2025-09)</span>
+        </div>
+    </div>
+    <div class="sk-foot"><span class="pg">23.</span><span class="cap">컨텍스트 엔지니어링</span></div>
+</section>
+
+
+<!-- 4.3 P2·P3 -->
+<section class="slide" data-title="4.3 비용·상태">
+    <div class="sk-head">4장 · 추론 · 상태 · 메모리 <span class="sep">·</span> <span class="chap">4.3 비용 한도(<span class="sk-pill">P2</span>)와 상태 복구(<span class="sk-pill">P3</span>)</span></div>
     <div class="sk-body">
         <div class="sk-summary">
             <div class="lead">루프 — 종료 보장 · 상태 — 복구 보장</div>
@@ -1070,7 +1183,7 @@ flowchart TB
                     <div class="bd"><ul>
                         <li>1차 한도는 단계 수, 토큰, 시간 세 가지를 모두 설정</li>
                         <li>요청 단위 비용 회계와 알람 운영</li>
-                        <li>한도 도달 시 거절할지 격하(degraded)할지 정책 명시</li>
+                        <li>한도 도달 시 거절할지, 축소 응답(graceful degradation)으로 전환할지 정책 명시</li>
                     </ul></div>
                 </div>
                 <div class="sk-card">
@@ -1084,13 +1197,13 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">22.</span><span class="cap">비용 · 상태 · 복구</span></div>
+    <div class="sk-foot"><span class="pg">24.</span><span class="cap">비용 · 상태 · 복구</span></div>
 </section>
 
 
-<!-- 4.3 메모리·관측성 -->
-<section class="slide" data-title="4.3 메모리·관측성">
-    <div class="sk-head">4장 · 추론 · 상태 · 메모리 <span class="sep">·</span> <span class="chap">4.3 메모리 계층과 관측성(<span class="sk-pill">P5</span>)</span></div>
+<!-- 4.4 메모리·관측성 -->
+<section class="slide" data-title="4.4 메모리·관측성">
+    <div class="sk-head">4장 · 추론 · 상태 · 메모리 <span class="sep">·</span> <span class="chap">4.4 메모리 계층과 관측성(<span class="sk-pill">P5</span>)</span></div>
     <div class="sk-body">
         <div class="sk-summary">
             <div class="lead">상태는 단계별 스냅샷이고, 메모리는 학습된 사실의 저장소</div>
@@ -1129,17 +1242,18 @@ flowchart TB
                     </div>
                 </div>
                 <div class="sk-card">
-                    <div class="hd"><span class="ic" style="background:var(--sk-orange);"></span>주요 측정 지표</div>
-                    <div class="bd"><ul>
-                        <li>루프 깊이, 도구 성공률</li>
-                        <li>요청 단위 토큰 비용, 첫 응답 시간</li>
-                        <li>의사결정 품질(Eval 하니스)</li>
+                    <div class="hd"><span class="ic" style="background:var(--sk-orange);"></span>주요 지표 · 에이전트 Eval의 층위</div>
+                    <div class="bd" style="font-size:clamp(0.72rem,0.92vw,0.82rem);"><ul>
+                        <li>운영 지표 — 루프 깊이·도구 성공률·요청당 토큰·첫 응답 시간</li>
+                        <li><strong>태스크 성공률</strong> — 최종 결과가 맞았나 (결과 평가)</li>
+                        <li><strong>궤적 평가(trajectory)</strong> — 도구 선택·순서·불필요 단계까지 채점 (과정 평가)</li>
+                        <li><strong>LLM-as-Judge</strong>는 값싸지만 자기편향·판정 불안정·비용 한계 — 골든셋·사람 표본과 병행</li>
                     </ul></div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">23.</span><span class="cap">메모리 · 트레이스</span></div>
+    <div class="sk-foot"><span class="pg">25.</span><span class="cap">메모리 · 트레이스</span></div>
 </section>
 
 
@@ -1156,7 +1270,7 @@ flowchart TB
             <p class="bridge"><strong>이전 장</strong> · 단일 에이전트 내부의 추론·상태·관측. <strong>이번 장</strong> · <span class="sk-pill" style="font-size:0.8em;">P1</span> HITL · 멀티 에이전트 토폴로지 · A2A·ACP · <strong>공개 사례·실패 사례·Best Practice</strong>까지. <strong>다음 장</strong> · 트렌드 도입 결정.</p>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">24.</span><span class="cap">5장 · 멀티 에이전트</span></div>
+    <div class="sk-foot"><span class="pg">26.</span><span class="cap">5장 · 멀티 에이전트</span></div>
 </section>
 
 
@@ -1212,7 +1326,7 @@ flowchart TB
             <caption>표준 액션 — Approve(그대로 진행) · Edit(인자·계획·응답 수정 후 진행) · Reject(중단 또는 대체 분기). 모든 결정은 트레이스에 1 스팬으로 기록 · 거절 시 사유와 다음 분기 명시.</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">25.</span><span class="cap">P1 · 인간 검증 진입점 운영</span></div>
+    <div class="sk-foot"><span class="pg">27.</span><span class="cap">P1 · 인간 검증 진입점 운영</span></div>
 </section>
 
 
@@ -1239,7 +1353,10 @@ flowchart BT
     class S single
     class M multi
                 </div></div>
-                <p style="margin-top:0.5rem; font-size:var(--small-size); color:var(--ink-mute);">참고: Anthropic, <em>Building effective agents</em> (2024)</p>
+                <div style="margin-top:0.5rem; padding:0.5rem 0.75rem; background:var(--sk-card-soft); border-left:3px solid var(--sk-red); font-size:var(--small-size); color:var(--ink-2);">
+                    <strong style="color:var(--sk-red);">정량 감각</strong> &nbsp; 멀티 에이전트 리서치 시스템은 일반 채팅 대비 <strong>약 15배 토큰</strong>을 소모 — 멀티는 "가능하냐"가 아니라 "그 비용을 정당화하느냐"의 문제. <span style="color:var(--ink-mute);">(Anthropic, <em>How we built our multi-agent research system</em>, 2025-06)</span>
+                </div>
+                <p style="margin-top:0.45rem; font-size:var(--small-size); color:var(--ink-mute);">참고: Anthropic, <em>Building effective agents</em> (2024) · Cognition, <em>Don't Build Multi-Agents</em> (2025) — 컨텍스트 공유가 어려운 작업은 멀티가 오히려 품질을 해친다는 반론도 함께 검토</p>
             </div>
             <div class="right">
                 <div class="sk-card">
@@ -1262,7 +1379,7 @@ flowchart BT
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">26.</span><span class="cap">토폴로지 선택</span></div>
+    <div class="sk-foot"><span class="pg">28.</span><span class="cap">토폴로지 선택</span></div>
 </section>
 
 
@@ -1299,7 +1416,7 @@ flowchart TB
                     <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>프로토콜 개요</div>
                     <div class="bd"><ul style="line-height:1.7;">
                         <li><strong>MCP</strong> — Anthropic, 2024-11 / 도구·자원 표준</li>
-                        <li><strong>A2A</strong> — Google, 2025-04 / 에이전트 발견 · 능력 카드 · 인증</li>
+                        <li><strong>A2A</strong> — Google, 2025-04 → Linux Foundation 이관(2025-06) / 에이전트 발견 · Agent Card · 인증</li>
                         <li><strong>ACP</strong> — IBM·BeeAI 커뮤니티, 2025 / 에이전트 간 메시지 · 세션</li>
                     </ul></div>
                 </div>
@@ -1314,7 +1431,7 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">27.</span><span class="cap">표준 프로토콜</span></div>
+    <div class="sk-foot"><span class="pg">29.</span><span class="cap">표준 프로토콜</span></div>
 </section>
 
 
@@ -1376,7 +1493,7 @@ flowchart TB
             <caption>각 항목은 공개된 제품 문서·블로그·논문 기반 요약 · 세부 구현은 비공개 부분 있을 수 있음.</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">28.</span><span class="cap">공개 사례 분해</span></div>
+    <div class="sk-foot"><span class="pg">30.</span><span class="cap">공개 사례 분해</span></div>
 </section>
 
 
@@ -1409,7 +1526,7 @@ flowchart TB
                     <ul>
                         <li>에이전트가 운영 데이터베이스를 자율 삭제, 코드 변경도 함께</li>
                         <li>위배: <span class="sk-pill">P4</span> 도구 권한 과다 / <span class="sk-pill">P1</span> 사전 승인 부재</li>
-                        <li>교훈: 회복 곤란 도구는 Pre-tool HITL과 환경 격리가 필수</li>
+                        <li>교훈: 회복 곤란 도구는 Pre-tool HITL·환경 격리에 더해 <strong>멱등성(idempotency)과 보상 트랜잭션</strong>을 설계 — 재시도·중복 호출이 두 번의 부작용이 되지 않도록</li>
                     </ul>
                 </div>
             </div>
@@ -1456,7 +1573,7 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">29.</span><span class="cap">실패 사례 · 6원칙 위배 관점</span></div>
+    <div class="sk-foot"><span class="pg">31.</span><span class="cap">실패 사례 · 6원칙 위배 관점</span></div>
 </section>
 
 
@@ -1533,7 +1650,7 @@ flowchart TB
             </tbody>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">30.</span><span class="cap">Best Practice ① · 설계</span></div>
+    <div class="sk-foot"><span class="pg">32.</span><span class="cap">Best Practice ① · 설계</span></div>
 </section>
 
 <section class="slide" data-title="5.7 Best Practice 2">
@@ -1606,7 +1723,7 @@ flowchart TB
             </tbody>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">31.</span><span class="cap">Best Practice ② · 운영</span></div>
+    <div class="sk-foot"><span class="pg">33.</span><span class="cap">Best Practice ② · 운영</span></div>
 </section>
 
 
@@ -1618,12 +1735,12 @@ flowchart TB
     <div class="sk-chap">
         <div class="num">06</div>
         <div class="text">
-            <h2>트렌드는 단순히<br>따라가는 것이 아닙니다.</h2>
-            <p class="lede">조직의 성숙도와 워크로드의 위험 수준에 맞춰<br>한두 가지를 선택적으로 도입이 효과적.</p>
+            <h2>트렌드는 따라가는 것이 아니라<br>선택하는 것이다.</h2>
+            <p class="lede">조직의 성숙도와 워크로드의 위험 수준에 맞춰<br>한두 가지만 선택적으로 도입하는 것이 효과적이다.</p>
             <p class="bridge"><strong>이전 장</strong> · 멀티 에이전트와 사례·실패·Best Practice. <strong>이번 장</strong> · 4 메가트렌드(T1~T4)를 한 페이지로 정리하고 도입 우선순위를 매트릭스로. <strong>다음 장</strong> · 출시 전 운영 체크리스트.</p>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">32.</span><span class="cap">6장 · 메가트렌드</span></div>
+    <div class="sk-foot"><span class="pg">34.</span><span class="cap">6장 · 메가트렌드</span></div>
 </section>
 
 
@@ -1678,7 +1795,7 @@ flowchart TB
             <caption>각 트렌드는 강의 전반에서 인용된 출처를 정리한 것이며, 도입 시 본 강의의 6원칙(P1~P6)과 직접 매핑되어 검토 가능</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">33.</span><span class="cap">메가트렌드 4가지</span></div>
+    <div class="sk-foot"><span class="pg">35.</span><span class="cap">메가트렌드 4가지</span></div>
 </section>
 
 
@@ -1739,7 +1856,74 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">34.</span><span class="cap">도입 우선순위 매트릭스</span></div>
+    <div class="sk-foot"><span class="pg">36.</span><span class="cap">도입 우선순위 매트릭스</span></div>
+</section>
+
+
+<!-- ============================================================
+     종합 — 레퍼런스 아키텍처 + 시리즈 지도
+     ============================================================ -->
+<section class="slide" data-title="종합 레퍼런스 아키텍처">
+    <div class="sk-head">종합 <span class="sep">·</span> <span class="chap">레퍼런스 아키텍처 — 조각들을 한 그림으로 · 시리즈 지도</span></div>
+    <div class="sk-body">
+        <div class="sk-summary">
+            <div class="lead">지금까지의 주제별 조각(Loop·도구·상태·관측·HITL)을 엔터프라이즈 배치도 한 장으로 통합합니다</div>
+            <div class="main">6개 계층 · 그리고 이 그림 위에서 RAG·AI Gateway가 놓일 자리</div>
+        </div>
+        <div class="sk-split" style="grid-template-columns:1.35fr 1fr;">
+            <div class="left">
+                <div class="sk-mermaid"><div class="mermaid">
+flowchart TB
+    U["사용자 · 상위 시스템"] --> GW
+    GW["② 모델 접근 계층<br/>라우팅·키·요율·캐시·폴백<br/><b>AI Gateway → 별도 강의</b>"]:::next
+    GW --> RT
+    subgraph CORE["① 에이전트 런타임"]
+        direction LR
+        RT["Loop · Policy<br/>종료·한도·게이트"] --- ORCH["오케스트레이션<br/>단일 / 멀티"]
+    end
+    RT --> TOOL
+    RT --> MEM
+    subgraph TOOL["③ 도구 계층 (Registry·Executor·Formatter·Policy)"]
+        direction LR
+        T1["업무 API·DB"]
+        T2["샌드박스 실행"]
+        KB["지식 도구<br/><b>RAG → 별도 강의</b>"]:::next
+    end
+    subgraph MEM["④ 상태·메모리 저장소"]
+        direction LR
+        CK["체크포인터 P3"]
+        LT["장기·일화 메모리"]
+    end
+    RT -.스팬.-> OBS["⑤ 관측·평가 플레인<br/>Trace · Eval · 비용"]:::plane
+    RT -.승인 요청.-> HITL["⑥ HITL 큐<br/>Pre·Mid·Post"]:::plane
+    classDef next fill:#EAF4FF,stroke:#1565C0,color:#0D47A1,stroke-width:2px,stroke-dasharray:5 3
+    classDef plane fill:#F2F2F2,stroke:#999,color:#333
+    class U,T1,T2,CK,LT,RT,ORCH default
+                </div></div>
+            </div>
+            <div class="right">
+                <div class="sk-card">
+                    <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>여섯 계층과 이 강의의 매핑</div>
+                    <div class="bd" style="font-size:clamp(0.72rem,0.92vw,0.82rem);"><ul>
+                        <li>① 런타임 — 2장·4장 (Loop·State·Policy)</li>
+                        <li>③ 도구 — 3장 (4요소·MCP·다층 방어)</li>
+                        <li>④ 상태·메모리 — 4.3·4.4 (P3)</li>
+                        <li>⑤ 관측·평가 — 4.4·7장 (P5)</li>
+                        <li>⑥ HITL — 5.1·7.2 (P1)</li>
+                    </ul></div>
+                </div>
+                <div class="sk-card">
+                    <div class="hd" style="background:#EAF4FF;"><span class="ic" style="background:#1565C0;"></span>후속 강의가 놓일 자리 (점선)</div>
+                    <div class="bd" style="font-size:clamp(0.72rem,0.92vw,0.82rem);"><ul>
+                        <li><strong style="color:#1565C0;">RAG</strong> — ③ 도구 계층의 <strong>지식 도구</strong>. 4.2의 적시 로딩(just-in-time)이 그 진입점</li>
+                        <li><strong style="color:#1565C0;">AI Gateway</strong> — ② <strong>모델 접근 계층</strong>. 라우팅·키·요율·폴백을 한 곳에서</li>
+                        <li>오늘 그린 그림 위에 두 계층을 얹으면 시리즈 전체가 완성</li>
+                    </ul></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="sk-foot"><span class="pg">37.</span><span class="cap">레퍼런스 아키텍처 · 시리즈 지도</span></div>
 </section>
 
 
@@ -1751,12 +1935,12 @@ flowchart TB
     <div class="sk-chap">
         <div class="num">07</div>
         <div class="text">
-            <h2>운영 시점에서<br>다시 점검.</h2>
-            <p class="lede">설계 6원칙을 운영 7체크 항목으로 환산하여<br>조직의 1차 리스크 식별.</p>
+            <h2>출시 전,<br>운영의 눈으로 다시 점검한다.</h2>
+            <p class="lede">설계 6원칙을 운영 체크 7항목으로 환산하면<br>조직이 지금 안고 있는 1차 리스크가 드러난다.</p>
             <p class="bridge"><strong>이전 장</strong> · 트렌드 도입 결정. <strong>이번 장</strong> · 출시 전 통과 기준·증빙·HITL 운영 매트릭스. ADR 첨부용 형식.</p>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">35.</span><span class="cap">7장 · 운영 체크리스트</span></div>
+    <div class="sk-foot"><span class="pg">38.</span><span class="cap">7장 · 운영 체크리스트</span></div>
 </section>
 
 
@@ -1779,7 +1963,7 @@ flowchart TB
             </thead>
             <tbody>
                 <tr>
-                    <td class="row-h"><span class="sk-pill">P1</span> 신뢰성 · HITL</td>
+                    <td class="row-h"><span class="sk-pill">P1</span> 자율성 · HITL</td>
                     <td style="text-align:left;">위험도 HIGH 도구에 사전 인간 승인 게이트가 있는가 / 실패 시 거절·격하 정책이 명시되어 있는가</td>
                     <td style="text-align:left;">고위험 도구 100%에 Pre-tool 게이트 / 실패 분기에 fallback 또는 격하 동작 정의</td>
                     <td style="text-align:left;">도구 위험도 분류표 · HITL 운영 매트릭스 · 실패 시나리오별 Runbook</td>
@@ -1824,7 +2008,7 @@ flowchart TB
             <caption>본 7체크는 출시 전 운영 게이트로 사용 가능. 각 행을 ADR에 첨부 가능한 형태로 작성한 후 실제 증빙 산출물 링크 부여 권장.</caption>
         </table>
     </div>
-    <div class="sk-foot"><span class="pg">36.</span><span class="cap">운영 체크 6항목</span></div>
+    <div class="sk-foot"><span class="pg">39.</span><span class="cap">운영 체크 6항목</span></div>
 </section>
 
 
@@ -1894,7 +2078,7 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">37.</span><span class="cap">HITL 운영 매트릭스</span></div>
+    <div class="sk-foot"><span class="pg">40.</span><span class="cap">HITL 운영 매트릭스</span></div>
 </section>
 
 
@@ -1933,7 +2117,7 @@ flowchart TB
             Thank You · Q&amp;A
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">38.</span><span class="cap">End · 2026.05</span></div>
+    <div class="sk-foot"><span class="pg">41.</span><span class="cap">End · 2026.05</span></div>
 </section>
 
 
@@ -1951,15 +2135,17 @@ flowchart TB
                 <div class="bd"><ul>
                     <li>Russell &amp; Norvig, <em>Artificial Intelligence: A Modern Approach</em>, 4판 (2020)</li>
                     <li>Anthropic, <em>Building effective agents</em> (Schluntz·Zhang, 2024-12) — anthropic.com/engineering/building-effective-agents</li>
+                    <li>Anthropic, <em>Effective context engineering for AI agents</em> (2025-09)</li>
                     <li>Google, <em>Agents</em> whitepaper (Wiesinger 외, 2024-09)</li>
                     <li>OpenAI, <em>A Practical Guide to Building Agents</em> (2025)</li>
+                    <li>Cognition, <em>Don't Build Multi-Agents</em> (2025-06) · Anthropic, <em>How we built our multi-agent research system</em> (2025-06)</li>
                 </ul></div>
             </div>
             <div class="sk-card">
                 <div class="hd"><span class="ic" style="background:var(--sk-red);"></span>표준 프로토콜</div>
                 <div class="bd"><ul>
                     <li>MCP — modelcontextprotocol.io · spec.modelcontextprotocol.io (Anthropic, 2024-11)</li>
-                    <li>A2A — google.github.io/A2A (Google, 2025-04)</li>
+                    <li>A2A — a2a-protocol.org (Google 2025-04 → Linux Foundation 2025-06)</li>
                     <li>ACP — agentcommunicationprotocol.dev (IBM·BeeAI, 2025)</li>
                 </ul></div>
             </div>
@@ -1983,7 +2169,7 @@ flowchart TB
             </div>
         </div>
     </div>
-    <div class="sk-foot"><span class="pg">39.</span><span class="cap">References</span></div>
+    <div class="sk-foot"><span class="pg">42.</span><span class="cap">References</span></div>
 </section>
 
 
